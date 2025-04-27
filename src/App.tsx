@@ -6,6 +6,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Index from "./pages/Index";
+import VendorSignup from "./pages/VendorSignup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -16,6 +17,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/vendor-signup" element={<VendorSignup />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

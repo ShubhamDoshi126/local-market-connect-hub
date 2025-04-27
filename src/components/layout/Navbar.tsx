@@ -19,8 +19,10 @@ const Navbar = () => {
             <Link to="/vendors" className="text-gray-700 hover:text-purple-700">
               Local Vendors
             </Link>
-            <Button variant="outline">Sign In</Button>
-            <Button>Get Started</Button>
+            <Link to="/vendor-signup">
+              <Button variant="outline">Become a Vendor</Button>
+            </Link>
+            <Button>Sign In</Button>
           </div>
         </div>
       </div>
