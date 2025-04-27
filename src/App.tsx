@@ -6,6 +6,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Index from "./pages/Index";
+import Events from "./pages/Events";
 import VendorSignup from "./pages/VendorSignup";
 import NotFound from "./pages/NotFound";
 
@@ -17,6 +18,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/events" element={<Events />} />
           <Route path="/vendor-signup" element={<VendorSignup />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
