@@ -16,6 +16,7 @@ export type Database = {
           id: string
           is_vendor: boolean | null
           last_name: string | null
+          role: Database["public"]["Enums"]["user_role"]
         }
         Insert: {
           created_at?: string | null
@@ -23,6 +24,7 @@ export type Database = {
           id: string
           is_vendor?: boolean | null
           last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
         }
         Update: {
           created_at?: string | null
@@ -30,6 +32,7 @@ export type Database = {
           id?: string
           is_vendor?: boolean | null
           last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
         }
         Relationships: []
       }
@@ -112,6 +115,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      user_role: "admin" | "user"
       vendor_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
@@ -228,6 +232,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      user_role: ["admin", "user"],
       vendor_status: ["pending", "approved", "rejected"],
     },
   },
