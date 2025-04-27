@@ -9,7 +9,101 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string | null
+          first_name: string | null
+          id: string
+          is_vendor: boolean | null
+          last_name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          first_name?: string | null
+          id: string
+          is_vendor?: boolean | null
+          last_name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          is_vendor?: boolean | null
+          last_name?: string | null
+        }
+        Relationships: []
+      }
+      vendor_locations: {
+        Row: {
+          address: string
+          city: string
+          created_at: string | null
+          id: string
+          vendor_id: string | null
+          zip_code: string
+        }
+        Insert: {
+          address: string
+          city: string
+          created_at?: string | null
+          id?: string
+          vendor_id?: string | null
+          zip_code: string
+        }
+        Update: {
+          address?: string
+          city?: string
+          created_at?: string | null
+          id?: string
+          vendor_id?: string | null
+          zip_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_locations_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendors: {
+        Row: {
+          business_category: string
+          business_name: string
+          created_at: string | null
+          description: string | null
+          id: string
+          instagram: string | null
+          status: Database["public"]["Enums"]["vendor_status"] | null
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          business_category: string
+          business_name: string
+          created_at?: string | null
+          description?: string | null
+          id: string
+          instagram?: string | null
+          status?: Database["public"]["Enums"]["vendor_status"] | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          business_category?: string
+          business_name?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          instagram?: string | null
+          status?: Database["public"]["Enums"]["vendor_status"] | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +112,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      vendor_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +227,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      vendor_status: ["pending", "approved", "rejected"],
+    },
   },
 } as const

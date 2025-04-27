@@ -1,8 +1,27 @@
 
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 const Navbar = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error signing out",
+        description: error.message,
+      });
+    }
+  };
+
   return (
     <nav className="border-b bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -19,10 +38,18 @@ const Navbar = () => {
             <Link to="/vendors" className="text-gray-700 hover:text-purple-700">
               Local Vendors
             </Link>
-            <Link to="/vendor-signup">
-              <Button variant="outline">Become a Vendor</Button>
-            </Link>
-            <Button>Sign In</Button>
+            {user ? (
+              <>
+                <Link to="/vendor-signup">
+                  <Button variant="outline">Become a Vendor</Button>
+                </Link>
+                <Button onClick={handleSignOut}>Sign Out</Button>
+              </>
+            ) : (
+              <Link to="/auth">
+                <Button>Sign In</Button>
+              </Link>
+            )}
           </div>
         </div>
       </div>
