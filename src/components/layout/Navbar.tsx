@@ -13,6 +13,10 @@ const Navbar = () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      toast({
+        title: "Signed out successfully",
+        description: "You have been signed out of your account.",
+      });
     } catch (error: any) {
       toast({
         variant: "destructive",
