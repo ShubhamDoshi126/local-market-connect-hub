@@ -1,13 +1,29 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { useQuery } from "@tanstack/react-query";
 
 const Navbar = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
 
   const handleSignOut = async () => {
     try {
@@ -44,6 +60,11 @@ const Navbar = () => {
             </Link>
             {user ? (
               <>
+                {profile?.role === "admin" && (
+                  <Link to="/admin" className="text-gray-700 hover:text-purple-700">
+                    Admin Dashboard
+                  </Link>
+                )}
                 <Link to="/vendor-signup">
                   <Button variant="outline">Become a Vendor</Button>
                 </Link>
