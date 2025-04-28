@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { mockEvents } from "@/data/mock-events";
 
 // Temporary public token - you should move this to Supabase secrets in production
-mapboxgl.accessToken = "pk.eyJ1IjoibG92YWJsZWRldiIsImEiOiJjbHR1a3UwN2YwcW94MmpxcHplNWhqemduIn0.a6C7PWpSa3TXO3yV_7YcVw";
+mapboxgl.accessToken = "pk.eyJ1IjoicnJwYXJla2giLCJhIjoiY21hMWFlZWo0MWVoODJqb3JlcjZkMXF6aCJ9.g95mFRljtWFsl_i12Dt-ug";
 
 interface EventMapProps {
   className?: string;
