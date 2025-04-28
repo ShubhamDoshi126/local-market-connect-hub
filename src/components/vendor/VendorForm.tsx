@@ -2,322 +2,334 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { MapPin } from "lucide-react";
-import { Link } from "react-router-dom";
-
-import { Button } from "@/components/ui/button";
+import { vendorFormSchema, VendorFormValues } from "./vendorFormSchema";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
-import { categories, formSchema, type FormValues } from "./vendorFormSchema";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import LocationSearch from "@/components/map/LocationSearch";
 
 const VendorForm = () => {
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<VendorFormValues>({
+    resolver: zodResolver(vendorFormSchema),
     defaultValues: {
       businessName: "",
-      contactName: "",
       email: "",
       phone: "",
-      website: "",
-      instagram: "",
       description: "",
+      category: "",
       address: "",
       city: "",
+      state: "",
       zipCode: "",
-      businessCategory: "",
-      termsAccepted: false,
+      website: "",
+      instagram: "",
     },
   });
 
-  const onSubmit = async (values: FormValues) => {
-    setIsSubmitting(true);
-    
+  const onSubmit = async (values: VendorFormValues) => {
+    setLoading(true);
     try {
-      // Here you would normally send data to Supabase or your backend
-      console.log("Form submitted:", values);
+      // Get the current user
+      const { data: { user } } = await supabase.auth.getUser();
       
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
+      if (!user) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "You must be logged in to submit a vendor application.",
+        });
+        navigate("/auth");
+        return;
+      }
+
+      // Submit vendor application to Supabase
+      const { error } = await supabase.from("vendors").insert({
+        user_id: user.id,
+        business_name: values.businessName,
+        email: values.email,
+        phone: values.phone,
+        description: values.description,
+        category: values.category,
+        address: values.address,
+        city: values.city,
+        state: values.state,
+        zip_code: values.zipCode,
+        website: values.website || null,
+        instagram: values.instagram || null,
+        status: "pending",
+      });
+
+      if (error) throw error;
+
       toast({
         title: "Application submitted!",
-        description: "We'll review your vendor application and be in touch soon.",
+        description: "Your vendor application has been submitted and is pending review.",
       });
-      
-      form.reset();
-    } catch (error) {
+      navigate("/");
+    } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Submission failed",
-        description: "There was a problem submitting your application. Please try again.",
+        title: "Error",
+        description: error.message || "An error occurred while submitting your application.",
       });
-      console.error(error);
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
+    }
+  };
+
+  const handleLocationSelect = (location: { placeName: string; coordinates: [number, number] }) => {
+    // Extract components from the location string
+    const addressParts = location.placeName.split(', ');
+    
+    // Basic parsing of the address components - this is simplified and might need adjustment
+    if (addressParts.length >= 3) {
+      // Set the form values
+      form.setValue('address', addressParts[0], { shouldValidate: true });
+      
+      // Set city - typically the second-to-last or third-to-last part
+      const cityIndex = addressParts.length >= 4 ? addressParts.length - 3 : addressParts.length - 2;
+      form.setValue('city', addressParts[cityIndex], { shouldValidate: true });
+      
+      // Set state and zip - typically from the last part
+      const stateZip = addressParts[addressParts.length - 2].split(' ');
+      if (stateZip.length >= 1) {
+        form.setValue('state', stateZip[0], { shouldValidate: true });
+      }
+      
+      // Try to extract ZIP code from the last part
+      const zipMatch = addressParts[addressParts.length - 2].match(/\d{5}/);
+      if (zipMatch) {
+        form.setValue('zipCode', zipMatch[0], { shouldValidate: true });
+      }
+      
+      setSelectedLocation(location.placeName);
     }
   };
 
   return (
-    <Card className="shadow-lg">
-      <CardHeader>
-        <CardTitle className="text-2xl text-center">Vendor Application</CardTitle>
-        <CardDescription className="text-center">
-          Fill out the form below to apply as a vendor on LocalMKT
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="space-y-6">
-              <div className="border-b border-gray-200 pb-6">
-                <h2 className="text-lg font-medium text-purple-700">Business Information</h2>
-                <div className="grid grid-cols-1 gap-6 mt-4 sm:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="businessName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Business Name*</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Your business name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contactName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Name*</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Your name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email*</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="you@example.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone Number*</FormLabel>
-                        <FormControl>
-                          <Input type="tel" placeholder="(123) 456-7890" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="businessCategory"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Business Category*</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {categories.map((category) => (
-                              <SelectItem key={category.value} value={category.value}>
-                                {category.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <div className="border-b border-gray-200 pb-6">
-                <h2 className="text-lg font-medium text-purple-700">Location</h2>
-                <div className="grid grid-cols-1 gap-6 mt-4 sm:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="address"
-                    render={({ field }) => (
-                      <FormItem className="sm:col-span-2">
-                        <FormLabel>Street Address*</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                            <Input className="pl-10" placeholder="123 Market Street" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>City*</FormLabel>
-                        <FormControl>
-                          <Input placeholder="San Francisco" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="zipCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Zip Code*</FormLabel>
-                        <FormControl>
-                          <Input placeholder="94110" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <div className="border-b border-gray-200 pb-6">
-                <h2 className="text-lg font-medium text-purple-700">Online Presence</h2>
-                <div className="grid grid-cols-1 gap-6 mt-4 sm:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="website"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Website (optional)</FormLabel>
-                        <FormControl>
-                          <Input type="url" placeholder="https://yourbusiness.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="instagram"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Instagram (optional)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="@yourbusiness" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Business Description*</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Tell shoppers about your business, products, and mission..." 
-                          className="min-h-[120px]" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        This will be displayed on your vendor profile
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="termsAccepted"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        I agree to the <Link to="/terms" className="text-purple-700 hover:underline">terms and conditions</Link>
-                      </FormLabel>
-                      <FormMessage />
-                    </div>
-                  </FormItem>
-                )}
-              />
-            </div>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Business Information */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Business Information</h2>
+          
+          <FormField
+            control={form.control}
+            name="businessName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Business Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Your business name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="contact@yourbusiness.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             
-            <CardFooter className="flex justify-center px-0 pt-4">
-              <Button 
-                type="submit" 
-                className="w-full sm:w-auto px-8" 
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Submitting...' : 'Submit Application'}
-              </Button>
-            </CardFooter>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone</FormLabel>
+                  <FormControl>
+                    <Input placeholder="(555) 123-4567" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Textarea 
+                    placeholder="Tell us about your business and what you sell..." 
+                    className="min-h-[120px]" 
+                    {...field} 
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Category</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="art">Art & Crafts</SelectItem>
+                    <SelectItem value="food">Food & Beverages</SelectItem>
+                    <SelectItem value="fashion">Fashion & Accessories</SelectItem>
+                    <SelectItem value="home">Home & Decor</SelectItem>
+                    <SelectItem value="beauty">Beauty & Wellness</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        {/* Location Information */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Location</h2>
+          
+          <div className="mb-4">
+            <label className="block mb-2">Search for your address</label>
+            <LocationSearch 
+              onLocationSelect={handleLocationSelect} 
+              placeholder="Start typing your address..." 
+            />
+            {selectedLocation && (
+              <p className="mt-2 text-sm text-green-600">Address selected: {selectedLocation}</p>
+            )}
+          </div>
+          
+          <FormField
+            control={form.control}
+            name="address"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Street Address</FormLabel>
+                <FormControl>
+                  <Input placeholder="123 Market St" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem className="col-span-2 md:col-span-2">
+                  <FormLabel>City</FormLabel>
+                  <FormControl>
+                    <Input placeholder="San Francisco" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="state"
+              render={({ field }) => (
+                <FormItem className="col-span-1">
+                  <FormLabel>State</FormLabel>
+                  <FormControl>
+                    <Input placeholder="CA" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="zipCode"
+              render={({ field }) => (
+                <FormItem className="col-span-1">
+                  <FormLabel>ZIP Code</FormLabel>
+                  <FormControl>
+                    <Input placeholder="94103" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+        
+        {/* Social Media */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Social Media (Optional)</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="website"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Website</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://yourbusiness.com" {...field} />
+                  </FormControl>
+                  <FormDescription>Your business website (if you have one)</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="instagram"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Instagram</FormLabel>
+                  <FormControl>
+                    <Input placeholder="@yourbusiness" {...field} />
+                  </FormControl>
+                  <FormDescription>Your Instagram handle (without the @)</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+        
+        <div className="pt-4">
+          <Button type="submit" disabled={loading} className="w-full md:w-auto">
+            {loading ? "Submitting..." : "Submit Application"}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 };
 

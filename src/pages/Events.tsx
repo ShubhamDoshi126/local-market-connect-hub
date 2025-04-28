@@ -5,6 +5,8 @@ import { Link } from "react-router-dom";
 
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import EventMap from "@/components/map/EventMap";
+import LocationSearch from "@/components/map/LocationSearch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { 
@@ -16,62 +18,7 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-// Mock data for events
-const mockEvents = [
-  {
-    id: "1",
-    name: "Downtown Artisan Market",
-    date: "May 5, 2025",
-    time: "10:00 AM - 4:00 PM",
-    location: "Central Plaza",
-    city: "San Francisco",
-    zip: "94105",
-    image: "https://images.unsplash.com/photo-1555375771-14b2a63968a9",
-    description: "A weekly market featuring local artisans, crafters, and food vendors.",
-    tags: ["art", "food-drink", "crafts"],
-    vendorCount: 24
-  },
-  {
-    id: "2",
-    name: "Neighborhood Wellness Fair",
-    date: "May 12, 2025",
-    time: "9:00 AM - 2:00 PM",
-    location: "Community Park",
-    city: "San Francisco",
-    zip: "94110",
-    image: "https://images.unsplash.com/photo-1519750783826-e2420f4d687f",
-    description: "Discover local wellness practitioners, natural products, and healthy food options.",
-    tags: ["wellness", "food-drink"],
-    vendorCount: 18
-  },
-  {
-    id: "3",
-    name: "Vintage Pop-up Market",
-    date: "May 20, 2025",
-    time: "12:00 PM - 7:00 PM",
-    location: "The Old Factory",
-    city: "Oakland",
-    zip: "94612",
-    image: "https://images.unsplash.com/photo-1563994693-c57288ee84e0",
-    description: "Curated vintage clothing, accessories, and home goods from top collectors.",
-    tags: ["clothing", "home-decor"],
-    vendorCount: 16
-  },
-  {
-    id: "4",
-    name: "Makers & Music Festival",
-    date: "June 2, 2025",
-    time: "2:00 PM - 10:00 PM",
-    location: "Waterfront Park",
-    city: "San Francisco",
-    zip: "94111",
-    image: "https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae",
-    description: "A celebration of local makers and musicians with food trucks and craft beverages.",
-    tags: ["music", "food-drink", "art"],
-    vendorCount: 35
-  }
-];
+import { mockEvents } from "@/data/mock-events";
 
 // Tag color mapping
 const tagColors: Record<string, string> = {
@@ -88,6 +35,7 @@ const tagColors: Record<string, string> = {
 const Events = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCity, setSelectedCity] = useState("All Cities");
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
   // Get unique cities from events data
   const cities = ["All Cities", ...Array.from(new Set(mockEvents.map(event => event.city)))];
@@ -102,6 +50,20 @@ const Events = () => {
     
     return matchesSearch && matchesCity;
   });
+
+  const handleLocationSelect = (location: { placeName: string; coordinates: [number, number] }) => {
+    // Extract city from location if possible
+    const parts = location.placeName.split(',');
+    if (parts.length > 1) {
+      const cityPart = parts[parts.length - 3]?.trim();
+      if (cityPart && cities.includes(cityPart)) {
+        setSelectedCity(cityPart);
+      }
+    }
+    
+    // Switch to map view
+    setViewMode("map");
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -152,6 +114,45 @@ const Events = () => {
                 </Button>
               </div>
             </div>
+            
+            {/* View toggle */}
+            <div className="mt-4 flex justify-center">
+              <div className="inline-flex rounded-md shadow-sm" role="group">
+                <button
+                  type="button"
+                  className={`px-4 py-2 text-sm font-medium border border-gray-200 rounded-l-lg ${
+                    viewMode === "list" 
+                      ? "bg-purple-700 text-white" 
+                      : "bg-white text-gray-900 hover:bg-gray-100"
+                  }`}
+                  onClick={() => setViewMode("list")}
+                >
+                  List View
+                </button>
+                <button
+                  type="button"
+                  className={`px-4 py-2 text-sm font-medium border border-gray-200 rounded-r-md ${
+                    viewMode === "map" 
+                      ? "bg-purple-700 text-white" 
+                      : "bg-white text-gray-900 hover:bg-gray-100"
+                  }`}
+                  onClick={() => setViewMode("map")}
+                >
+                  Map View
+                </button>
+              </div>
+            </div>
+            
+            {/* Location search for map view */}
+            {viewMode === "map" && (
+              <div className="mt-4">
+                <LocationSearch 
+                  className="max-w-xl mx-auto" 
+                  onLocationSelect={handleLocationSelect} 
+                  placeholder="Find events in a specific location..."
+                />
+              </div>
+            )}
           </div>
         </section>
         
@@ -164,6 +165,8 @@ const Events = () => {
               <div className="text-center py-10">
                 <p className="text-gray-500">No events found. Try adjusting your search.</p>
               </div>
+            ) : viewMode === "map" ? (
+              <EventMap className="mt-4" />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredEvents.map((event) => (
