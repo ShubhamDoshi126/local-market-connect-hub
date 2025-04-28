@@ -1,17 +1,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Check, X } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { VendorTable } from "./VendorTable";
 
 const AdminVendorList = () => {
   const { toast } = useToast();
@@ -55,51 +46,7 @@ const AdminVendorList = () => {
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">Vendor Applications</h2>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Business Name</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Location</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {vendors?.map((vendor) => (
-            <TableRow key={vendor.id}>
-              <TableCell>{vendor.business_name}</TableCell>
-              <TableCell>{vendor.business_category}</TableCell>
-              <TableCell>
-                {vendor.vendor_locations?.[0]?.city}, {vendor.vendor_locations?.[0]?.zip_code}
-              </TableCell>
-              <TableCell>{vendor.status}</TableCell>
-              <TableCell className="space-x-2">
-                {vendor.status === "pending" && (
-                  <>
-                    <Button
-                      size="sm"
-                      className="bg-green-600 hover:bg-green-700"
-                      onClick={() => updateVendorStatus(vendor.id, "approved")}
-                    >
-                      <Check className="mr-1" />
-                      Approve
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => updateVendorStatus(vendor.id, "rejected")}
-                    >
-                      <X className="mr-1" />
-                      Reject
-                    </Button>
-                  </>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <VendorTable vendors={vendors} onStatusUpdate={updateVendorStatus} />
     </div>
   );
 };
