@@ -10,27 +10,31 @@ const Admin = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkAdminAccess = async () => {
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
+    // 1) still waiting on AuthProvider→skip
+    if (user === undefined) return;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+    // 2) truly no user→go to /auth
+    if (user === null) {
+      navigate("/auth");
+      return;
+    }
 
-      if (profile?.role !== "admin") {
-        navigate("/");
-      }
-    };
-
-    checkAdminAccess();
+    // 3) we have a user→check role
+    supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single()
+      .then(({ data: profile }) => {
+        if (profile?.role !== "admin") {
+          navigate("/");
+        }
+      });
+      console.log("Supabase session user.id:", user.id);
   }, [user, navigate]);
 
-  if (!user) return null;
+  // optionally show a spinner while user===undefined
+  if (user === undefined) return null;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -39,5 +43,6 @@ const Admin = () => {
     </div>
   );
 };
+
 
 export default Admin;

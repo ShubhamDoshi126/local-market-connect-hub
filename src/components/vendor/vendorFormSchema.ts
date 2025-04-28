@@ -1,6 +1,10 @@
 
 import * as z from "zod";
 
+export const vendorFormSchema = z.object({
+
+});
+
 export const formSchema = z.object({
   businessName: z.string().min(2, {
     message: "Business name must be at least 2 characters.",

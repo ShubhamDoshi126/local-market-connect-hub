@@ -4,19 +4,20 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: User | null | undefined;
+  session: Session | null | undefined;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, session: null });
+const AuthContext = createContext<AuthContextType>({ user: undefined, session: undefined });
+
 
 export const useAuth = () => {
   return useContext(AuthContext);
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
 
   useEffect(() => {
     // Set up auth state listener
