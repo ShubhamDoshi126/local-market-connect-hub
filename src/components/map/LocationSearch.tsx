@@ -148,7 +148,7 @@ const LocationSearch = ({
                   className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer"
                   onClick={() => handleSelectLocation(suggestion)}
                 >
-                  {suggestion.place_name} // Use place_name instead of display_name
+                  {suggestion.place_name} 
                 </li>
               ))}
             </ul>
