@@ -4,7 +4,9 @@ import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast"; // Correct import path
+
+const MAPBOX_TOKEN = "pk.eyJ1IjoicnJwYXJla2giLCJhIjoiY21hMWFlZWo0MWVoODJqb3JlcjZkMXF6aCJ9.g95mFRljtWFsl_i12Dt-ug";
 
 interface LocationSearchProps {
   onLocationSelect?: (location: {
@@ -49,22 +51,21 @@ const LocationSearch = ({
       setSuggestions([]);
       return;
     }
-
+  
     setLoading(true);
     try {
-      // LocationIQ API for geocoding
       const response = await fetch(
-        `https://api.locationiq.com/v1/autocomplete?key=pk.4c585f7c39fed131a4cd121b48bb9c0e&q=${encodeURIComponent(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
           query
-        )}&limit=5&dedupe=1`
+        )}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5`
       );
-      
+  
       if (!response.ok) {
         throw new Error("Failed to fetch suggestions");
       }
-      
+  
       const data = await response.json();
-      setSuggestions(Array.isArray(data) ? data : []);
+      setSuggestions(data.features ?? []);
     } catch (error) {
       console.error("Error fetching location suggestions:", error);
       toast({
@@ -91,21 +92,18 @@ const LocationSearch = ({
     }
   };
 
-  const handleSelectLocation = (suggestion: any) => {
-    const placeName = suggestion.display_name;
-    const coordinates: [number, number] = [
-      parseFloat(suggestion.lon),
-      parseFloat(suggestion.lat),
-    ];
-
+  const handleSelectLocation = (feature: any) => {
+    const placeName = feature.place_name;
+    const [lon, lat] = feature.center; // Mapbox returns center as [lon, lat]
+  
     setSearchValue(placeName);
     setSuggestions([]);
     setShowSuggestions(false);
-
+  
     if (onLocationSelect) {
       onLocationSelect({
         placeName,
-        coordinates,
+        coordinates: [lon, lat],
       });
     }
   };
@@ -146,11 +144,11 @@ const LocationSearch = ({
             <ul className="py-1">
               {suggestions.map((suggestion) => (
                 <li
-                  key={suggestion.place_id}
+                  key={suggestion.id} // Use id instead of place_id
                   className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer"
                   onClick={() => handleSelectLocation(suggestion)}
                 >
-                  {suggestion.display_name}
+                  {suggestion.place_name} // Use place_name instead of display_name
                 </li>
               ))}
             </ul>
