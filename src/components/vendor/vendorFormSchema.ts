@@ -2,10 +2,6 @@
 import * as z from "zod";
 
 export const vendorFormSchema = z.object({
-
-});
-
-export const formSchema = z.object({
   businessName: z.string().min(2, {
     message: "Business name must be at least 2 characters.",
   }),
@@ -29,16 +25,21 @@ export const formSchema = z.object({
   city: z.string().min(2, {
     message: "City is required.",
   }),
+  state: z.string().min(1, {
+    message: "State is required."
+  }),
   zipCode: z.string().min(5, {
     message: "Zip code is required.",
   }),
-  businessCategory: z.string({
+  category: z.string({
     required_error: "Please select a business category.",
   }),
   termsAccepted: z.boolean().refine((val) => val === true, {
     message: "You must accept the terms and conditions.",
   }),
 });
+
+export const formSchema = vendorFormSchema;
 
 export const categories = [
   { value: "food-drink", label: "Food and Drink" },
@@ -51,4 +52,5 @@ export const categories = [
   { value: "other", label: "Other" },
 ];
 
+export type VendorFormValues = z.infer<typeof vendorFormSchema>;
 export type FormValues = z.infer<typeof formSchema>;

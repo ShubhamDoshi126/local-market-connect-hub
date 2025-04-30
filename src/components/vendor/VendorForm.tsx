@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { vendorFormSchema, VendorFormValues } from "./vendorFormSchema";
+import { vendorFormSchema, VendorFormValues, categories } from "./vendorFormSchema";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import LocationSearch from "@/components/map/LocationSearch";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const VendorForm = () => {
   const { toast } = useToast();
@@ -23,6 +24,7 @@ const VendorForm = () => {
     resolver: zodResolver(vendorFormSchema),
     defaultValues: {
       businessName: "",
+      contactName: "",
       email: "",
       phone: "",
       description: "",
@@ -33,6 +35,7 @@ const VendorForm = () => {
       zipCode: "",
       website: "",
       instagram: "",
+      termsAccepted: false
     },
   });
 
@@ -52,30 +55,56 @@ const VendorForm = () => {
         return;
       }
 
-      // Submit vendor application to Supabase
-      const { error } = await supabase.from("vendors").insert({
-        user_id: user.id,
-        business_name: values.businessName,
-        email: values.email,
-        phone: values.phone,
-        description: values.description,
-        category: values.category,
-        address: values.address,
-        city: values.city,
-        state: values.state,
-        zip_code: values.zipCode,
-        website: values.website || null,
-        instagram: values.instagram || null,
-        status: "pending",
-      });
+      // 1. First create a business
+      const { data: business, error: businessError } = await supabase
+        .from("businesses")
+        .insert({
+          name: values.businessName,
+          description: values.description,
+          created_by: user.id
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (businessError) throw businessError;
+
+      if (!business) {
+        throw new Error("Failed to create business");
+      }
+
+      // 2. Then create the vendor profile connected to the business
+      const { error: vendorError } = await supabase
+        .from("vendors")
+        .insert({
+          id: crypto.randomUUID(),
+          business_id: business.id,
+          business_name: values.businessName,
+          business_category: values.category,
+          description: values.description, 
+          website: values.website || null,
+          instagram: values.instagram || null,
+          user_id: user.id,
+        });
+
+      if (vendorError) throw vendorError;
+
+      // 3. Add vendor location
+      const { error: locationError } = await supabase
+        .from("vendor_locations")
+        .insert({
+          vendor_id: business.id,
+          address: values.address,
+          city: values.city,
+          zip_code: values.zipCode
+        });
+
+      if (locationError) throw locationError;
 
       toast({
-        title: "Application submitted!",
-        description: "Your vendor application has been submitted and is pending review.",
+        title: "Business created!",
+        description: "You've successfully registered your vendor business.",
       });
-      navigate("/");
+      navigate("/business/" + business.id);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -131,6 +160,20 @@ const VendorForm = () => {
                 <FormLabel>Business Name</FormLabel>
                 <FormControl>
                   <Input placeholder="Your business name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="contactName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contact Person</FormLabel>
+                <FormControl>
+                  <Input placeholder="Full name of primary contact person" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -198,12 +241,11 @@ const VendorForm = () => {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="art">Art & Crafts</SelectItem>
-                    <SelectItem value="food">Food & Beverages</SelectItem>
-                    <SelectItem value="fashion">Fashion & Accessories</SelectItem>
-                    <SelectItem value="home">Home & Decor</SelectItem>
-                    <SelectItem value="beauty">Beauty & Wellness</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.value} value={category.value}>
+                        {category.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -322,10 +364,34 @@ const VendorForm = () => {
             />
           </div>
         </div>
+
+        <FormField
+          control={form.control}
+          name="termsAccepted"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <div className="space-y-1 leading-none">
+                <FormLabel>
+                  I accept the terms and conditions
+                </FormLabel>
+                <FormDescription>
+                  By checking this box, you agree to our Terms of Service and Privacy Policy.
+                </FormDescription>
+                <FormMessage />
+              </div>
+            </FormItem>
+          )}
+        />
         
         <div className="pt-4">
           <Button type="submit" disabled={loading} className="w-full md:w-auto">
-            {loading ? "Submitting..." : "Submit Application"}
+            {loading ? "Creating Business..." : "Create Business"}
           </Button>
         </div>
       </form>

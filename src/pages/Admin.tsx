@@ -2,7 +2,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { supabase } from "@/integrations/supabase/client";
 import AdminVendorList from "@/components/admin/AdminVendorList";
 
 const Admin = () => {
@@ -18,19 +17,6 @@ const Admin = () => {
       navigate("/auth");
       return;
     }
-
-    // 3) we have a user→check role
-    supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single()
-      .then(({ data: profile }) => {
-        if (profile?.role !== "admin") {
-          navigate("/");
-        }
-      });
-      console.log("Supabase session user.id:", user.id);
   }, [user, navigate]);
 
   // optionally show a spinner while user===undefined
