@@ -85,7 +85,15 @@ const BusinessPage = () => {
         .single();
       
       if (error) throw error;
-      return data as BusinessData;
+      
+      // Handle possible SelectQueryError by providing default empty arrays
+      const result = {
+        ...data,
+        vendors: Array.isArray(data.vendors) ? data.vendors : [],
+        vendor_locations: Array.isArray(data.vendor_locations) ? data.vendor_locations : []
+      } as BusinessData;
+      
+      return result;
     },
     enabled: !!id,
   });
@@ -197,8 +205,8 @@ const BusinessPage = () => {
     );
   }
 
-  const vendor: VendorData = business.vendors?.[0] || {};
-  const location: LocationData = business.vendor_locations?.[0] || {};
+  const vendor: VendorData = business?.vendors && business.vendors.length > 0 ? business.vendors[0] : {};
+  const location: LocationData = business?.vendor_locations && business.vendor_locations.length > 0 ? business.vendor_locations[0] : {};
 
   return (
     <div className="min-h-screen flex flex-col">

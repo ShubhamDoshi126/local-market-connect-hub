@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -72,18 +71,22 @@ const VendorForm = () => {
         throw new Error("Failed to create business");
       }
 
+      // Generate a new UUID for vendor
+      const vendorId = crypto.randomUUID();
+
       // 2. Then create the vendor profile connected to the business
+      // Important: Set user_id to the current authenticated user
       const { error: vendorError } = await supabase
         .from("vendors")
         .insert({
-          id: crypto.randomUUID(),
+          id: vendorId,
           business_id: business.id,
           business_name: values.businessName,
           business_category: values.category,
           description: values.description, 
           website: values.website || null,
           instagram: values.instagram || null,
-          user_id: user.id,
+          user_id: user.id, // This is crucial for RLS policies
         });
 
       if (vendorError) throw vendorError;
@@ -92,7 +95,7 @@ const VendorForm = () => {
       const { error: locationError } = await supabase
         .from("vendor_locations")
         .insert({
-          vendor_id: business.id,
+          vendor_id: vendorId, // Use the vendor ID (not business ID)
           address: values.address,
           city: values.city,
           zip_code: values.zipCode
@@ -106,6 +109,7 @@ const VendorForm = () => {
       });
       navigate("/business/" + business.id);
     } catch (error: any) {
+      console.error("Error creating vendor:", error);
       toast({
         variant: "destructive",
         title: "Error",

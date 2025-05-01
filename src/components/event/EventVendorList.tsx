@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -41,7 +42,9 @@ const EventVendorList = ({ eventId, isOwner }: EventVendorListProps) => {
         .eq("event_id", eventId);
       
       if (error) throw error;
-      return data as Vendor[];
+      
+      // Ensure we handle any potential query errors by providing a default array
+      return (Array.isArray(data) ? data : []) as Vendor[];
     },
   });
 
@@ -93,7 +96,7 @@ const EventVendorList = ({ eventId, isOwner }: EventVendorListProps) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {vendors.map((vendor) => (
+      {vendors?.map((vendor) => (
         <Card key={vendor.id} className="overflow-hidden hover:shadow-md transition-shadow">
           <CardContent className="p-6">
             <div className="flex justify-between items-start mb-4">
