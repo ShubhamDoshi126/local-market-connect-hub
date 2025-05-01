@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -12,16 +11,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Instagram, Globe, MapPin, Plus } from "lucide-react";
 
 interface VendorData {
-  business_category: string;
-  description: string | null;
-  website: string | null;
-  instagram: string | null;
+  business_category?: string;
+  description?: string | null;
+  website?: string | null;
+  instagram?: string | null;
 }
 
 interface LocationData {
-  address: string;
-  city: string;
-  zip_code: string;
+  address?: string;
+  city?: string;
+  zip_code?: string;
 }
 
 interface BusinessData {
@@ -30,15 +29,15 @@ interface BusinessData {
   description: string | null;
   created_at: string | null;
   created_by: string;
-  vendors: VendorData[];
-  vendor_locations: LocationData[];
+  vendors?: VendorData[];
+  vendor_locations?: LocationData[];
 }
 
 interface ProductData {
   id: string;
   name: string;
   description: string | null;
-  price: string | null;
+  price: number | null;
   image_url: string | null;
 }
 
@@ -198,8 +197,8 @@ const BusinessPage = () => {
     );
   }
 
-  const vendor = business.vendors?.[0] || {} as VendorData;
-  const location = business.vendor_locations?.[0] || {} as LocationData;
+  const vendor: VendorData = business.vendors?.[0] || {};
+  const location: LocationData = business.vendor_locations?.[0] || {};
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -211,7 +210,9 @@ const BusinessPage = () => {
             <div className="flex justify-between items-start mb-6 flex-wrap gap-4">
               <div>
                 <h1 className="text-3xl font-bold">{business.name}</h1>
-                <p className="text-gray-600 mt-1">{vendor.business_category?.replace('-', ' ')}</p>
+                <p className="text-gray-600 mt-1">
+                  {vendor.business_category?.replace('-', ' ')}
+                </p>
               </div>
 
               {isMember && (

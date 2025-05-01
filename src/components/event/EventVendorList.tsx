@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -20,12 +19,7 @@ interface Vendor {
   businesses: {
     id: string;
     name: string;
-    description: string;
-    vendors: {
-      business_category: string;
-      instagram: string;
-      website: string;
-    }[];
+    description: string | null;
   } | null;
 }
 
@@ -41,18 +35,13 @@ const EventVendorList = ({ eventId, isOwner }: EventVendorListProps) => {
           businesses (
             id,
             name,
-            description,
-            vendors (
-              business_category,
-              instagram,
-              website
-            )
+            description
           )
         `)
         .eq("event_id", eventId);
       
       if (error) throw error;
-      return (data || []) as Vendor[];
+      return data as Vendor[];
     },
   });
 
@@ -119,12 +108,6 @@ const EventVendorList = ({ eventId, isOwner }: EventVendorListProps) => {
             <p className="text-gray-600 text-sm mb-4 line-clamp-3">
               {vendor.businesses?.description || "No description available."}
             </p>
-            
-            {vendor.businesses?.vendors?.[0]?.business_category && (
-              <Badge variant="outline" className="mb-4">
-                {vendor.businesses.vendors[0].business_category.replace('-', ' ')}
-              </Badge>
-            )}
             
             <div className="mt-4 flex justify-between items-center">
               <Link to={`/business/${vendor.businesses?.id}`}>
