@@ -7,11 +7,12 @@ interface VendorStatusProps {
 }
 
 export const VendorStatus = ({ status }: VendorStatusProps) => {
-  const variant = {
+  // Map the status to a valid variant type
+  const variant: "default" | "destructive" | "outline" | "secondary" = {
     pending: "default",
-    approved: "success",
+    approved: "secondary",
     rejected: "destructive",
-  }[status];
+  }[status] as "default" | "destructive" | "outline" | "secondary";
 
   return <Badge variant={variant}>{status}</Badge>;
 };

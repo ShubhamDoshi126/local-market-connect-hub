@@ -11,6 +11,52 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Instagram, Globe, MapPin, Plus } from "lucide-react";
 
+interface VendorData {
+  business_category: string;
+  description: string | null;
+  website: string | null;
+  instagram: string | null;
+}
+
+interface LocationData {
+  address: string;
+  city: string;
+  zip_code: string;
+}
+
+interface BusinessData {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string | null;
+  created_by: string;
+  vendors: VendorData[];
+  vendor_locations: LocationData[];
+}
+
+interface ProductData {
+  id: string;
+  name: string;
+  description: string | null;
+  price: string | null;
+  image_url: string | null;
+}
+
+interface EventData {
+  id: string;
+  name: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  location: string;
+  city: string;
+}
+
+interface EventVendorData {
+  status: string;
+  events: EventData | null;
+}
+
 const BusinessPage = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -40,7 +86,7 @@ const BusinessPage = () => {
         .single();
       
       if (error) throw error;
-      return data;
+      return data as BusinessData;
     },
     enabled: !!id,
   });
@@ -100,7 +146,7 @@ const BusinessPage = () => {
         .eq("status", "accepted");
       
       if (error) throw error;
-      return data;
+      return data as EventVendorData[];
     },
     enabled: !!id,
   });
@@ -115,7 +161,7 @@ const BusinessPage = () => {
         .eq("business_id", id);
       
       if (error) throw error;
-      return data;
+      return data as ProductData[];
     },
     enabled: !!id,
   });
@@ -152,8 +198,8 @@ const BusinessPage = () => {
     );
   }
 
-  const vendor = business.vendors?.[0] || {};
-  const location = business.vendor_locations?.[0] || {};
+  const vendor = business.vendors?.[0] || {} as VendorData;
+  const location = business.vendor_locations?.[0] || {} as LocationData;
 
   return (
     <div className="min-h-screen flex flex-col">

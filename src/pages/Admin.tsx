@@ -17,6 +17,8 @@ const Admin = () => {
       navigate("/auth");
       return;
     }
+    
+    // No longer checking for admin role - all logged-in users can access this page
   }, [user, navigate]);
 
   // optionally show a spinner while user===undefined
@@ -24,11 +26,10 @@ const Admin = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+      <h1 className="text-2xl font-bold mb-6">Vendor Dashboard</h1>
       <AdminVendorList />
     </div>
   );
 };
-
 
 export default Admin;

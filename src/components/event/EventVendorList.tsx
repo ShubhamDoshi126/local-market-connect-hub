@@ -14,6 +14,21 @@ interface EventVendorListProps {
   isOwner: boolean;
 }
 
+interface Vendor {
+  id: string;
+  status: string;
+  businesses: {
+    id: string;
+    name: string;
+    description: string;
+    vendors: {
+      business_category: string;
+      instagram: string;
+      website: string;
+    }[];
+  } | null;
+}
+
 const EventVendorList = ({ eventId, isOwner }: EventVendorListProps) => {
   const { data: vendors, isLoading, error } = useQuery({
     queryKey: ["eventVendors", eventId],
@@ -37,7 +52,7 @@ const EventVendorList = ({ eventId, isOwner }: EventVendorListProps) => {
         .eq("event_id", eventId);
       
       if (error) throw error;
-      return data || [];
+      return (data || []) as Vendor[];
     },
   });
 
