@@ -1,7 +1,11 @@
 
 import { useState } from "react";
-import { Search, Calendar, MapPin } from "lucide-react";
+import { Search, Calendar, MapPin, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useToast } from "@/components/ui/use-toast";
 
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -18,7 +22,17 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockEvents } from "@/data/mock-events";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // Tag color mapping
 const tagColors: Record<string, string> = {
@@ -32,24 +46,58 @@ const tagColors: Record<string, string> = {
   "music": "bg-red-100 text-red-800"
 };
 
+interface Event {
+  id: string;
+  name: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  location: string;
+  city: string;
+  address: string;
+  description: string | null;
+  image_url: string | null;
+  lat: number | null;
+  lng: number | null;
+  created_by: string | null;
+  created_at: string | null;
+}
+
 const Events = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCity, setSelectedCity] = useState("All Cities");
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  // Fetch events from Supabase
+  const { data: events, isLoading, error, refetch } = useQuery({
+    queryKey: ['events'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("*")
+        .order('date', { ascending: true });
+        
+      if (error) throw error;
+      return data as Event[];
+    },
+  });
 
   // Get unique cities from events data
-  const cities = ["All Cities", ...Array.from(new Set(mockEvents.map(event => event.city)))];
+  const cities = events ? ["All Cities", ...Array.from(new Set(events.map(event => event.city)))] : ["All Cities"];
 
   // Filter events by search term and selected city
-  const filteredEvents = mockEvents.filter(event => {
+  const filteredEvents = events?.filter(event => {
     const matchesSearch = 
       event.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      event.description.toLowerCase().includes(searchTerm.toLowerCase());
+      (event.description?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     
     const matchesCity = selectedCity === "All Cities" || event.city === selectedCity;
     
     return matchesSearch && matchesCity;
-  });
+  }) || [];
 
   const handleLocationSelect = (location: { placeName: string; coordinates: [number, number] }) => {
     // Extract city from location if possible
@@ -63,6 +111,35 @@ const Events = () => {
     
     // Switch to map view
     setViewMode("map");
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!eventToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from("events")
+        .delete()
+        .eq("id", eventToDelete);
+
+      if (error) throw error;
+
+      toast({
+        title: "Event deleted",
+        description: "The event has been successfully deleted.",
+      });
+
+      // Refresh events list
+      refetch();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "There was an error deleting the event.",
+      });
+    } finally {
+      setEventToDelete(null);
+    }
   };
 
   return (
@@ -159,11 +236,31 @@ const Events = () => {
         {/* Events Listing */}
         <section className="py-10 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-bold mb-6">Upcoming Events</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Upcoming Events</h2>
+              {user && (
+                <Link to="/events/create">
+                  <Button>Create Event</Button>
+                </Link>
+              )}
+            </div>
             
-            {filteredEvents.length === 0 ? (
+            {isLoading ? (
               <div className="text-center py-10">
-                <p className="text-gray-500">No events found. Try adjusting your search.</p>
+                <p className="text-gray-500">Loading events...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-10">
+                <p className="text-red-500">Error loading events. Please try again later.</p>
+              </div>
+            ) : filteredEvents.length === 0 ? (
+              <div className="text-center py-10">
+                <p className="text-gray-500">No events found. Try adjusting your search or create your own event!</p>
+                {user && (
+                  <Link to="/events/create" className="mt-4 inline-block">
+                    <Button>Create Event</Button>
+                  </Link>
+                )}
               </div>
             ) : viewMode === "map" ? (
               <EventMap className="mt-4" />
@@ -173,7 +270,7 @@ const Events = () => {
                   <Card key={event.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                     <div className="aspect-w-16 aspect-h-9 h-[160px] overflow-hidden">
                       <img
-                        src={event.image}
+                        src={event.image_url || "https://images.unsplash.com/photo-1519750783826-e2420f4d687f"}
                         alt={event.name}
                         className="w-full h-full object-cover"
                       />
@@ -188,24 +285,43 @@ const Events = () => {
                     <CardContent className="pb-2">
                       <div className="flex items-center mb-2 text-sm text-gray-600">
                         <Calendar className="h-3.5 w-3.5 mr-1 text-gray-500" />
-                        {event.date} • {event.time}
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 mb-2">
-                        {event.tags.map(tag => (
-                          <Badge key={tag} variant="secondary" className={tagColors[tag]}>
-                            {tag.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                          </Badge>
-                        ))}
+                        {new Date(event.date).toLocaleDateString()} • {event.start_time.substring(0, 5)} - {event.end_time.substring(0, 5)}
                       </div>
                       <p className="line-clamp-2 text-gray-600 text-sm">
-                        {event.description}
+                        {event.description || "No description available."}
                       </p>
                     </CardContent>
                     <CardFooter className="pt-2 flex justify-between items-center">
-                      <div className="text-sm text-gray-600">{event.vendorCount} vendors</div>
                       <Link to={`/events/${event.id}`}>
                         <Button size="sm">View Details</Button>
                       </Link>
+                      
+                      {/* Delete button for event creators */}
+                      {user && event.created_by === user.id && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              onClick={() => setEventToDelete(event.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this event? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={() => setEventToDelete(null)}>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleDeleteEvent} className="bg-red-500 hover:bg-red-600">Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </CardFooter>
                   </Card>
                 ))}
