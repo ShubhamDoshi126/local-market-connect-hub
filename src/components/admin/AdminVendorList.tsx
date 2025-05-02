@@ -11,7 +11,7 @@ const AdminVendorList = () => {
     queryKey: ["vendors"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("vendors")
+        .from("vendor_profiles")  // Changed from "vendors" to "vendor_profiles"
         .select("*, vendor_locations(*)");
       
       if (error) throw error;
@@ -22,7 +22,7 @@ const AdminVendorList = () => {
   const updateVendorStatus = async (vendorId: string, status: "approved" | "rejected") => {
     try {
       const { error } = await supabase
-        .from("vendors")
+        .from("vendor_profiles")  // Changed from "vendors" to "vendor_profiles"
         .update({ status })
         .eq("id", vendorId);
 

@@ -44,13 +44,13 @@ export const useVendorSubmission = () => {
       }
 
       // 2. Then create the vendor profile connected to the business
-      // Generate a UUID for the vendor ID first - this is crucial for the vendors table
+      // Generate a UUID for the vendor ID first
       const { data: vendorId } = await supabase.rpc('gen_random_uuid');
       
       const { error: vendorError } = await supabase
-        .from("vendors")
+        .from("vendor_profiles")  // Changed from "vendors" to "vendor_profiles"
         .insert({
-          id: vendorId as string, // Explicitly cast to string to fix the TypeScript error
+          id: vendorId,
           business_id: business.id,
           business_name: values.businessName,
           business_category: values.category,
@@ -66,7 +66,7 @@ export const useVendorSubmission = () => {
       const { error: locationError } = await supabase
         .from("vendor_locations")
         .insert({
-          vendor_id: vendorId as string, // Use the generated vendor ID
+          vendor_id: vendorId,
           address: values.address,
           city: values.city,
           zip_code: values.zipCode
