@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -78,7 +79,7 @@ const VendorForm = () => {
       const { error: vendorError } = await supabase
         .from("vendors")
         .insert({
-          id: vendorId, // Explicitly set the ID to avoid null constraint violation
+          id: vendorId as string, // Explicitly cast to string to fix the TypeScript error
           business_id: business.id,
           business_name: values.businessName,
           business_category: values.category,
@@ -94,7 +95,7 @@ const VendorForm = () => {
       const { error: locationError } = await supabase
         .from("vendor_locations")
         .insert({
-          vendor_id: vendorId, // Use the generated vendor ID
+          vendor_id: vendorId as string, // Use the generated vendor ID
           address: values.address,
           city: values.city,
           zip_code: values.zipCode
