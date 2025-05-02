@@ -5,13 +5,29 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { Button } from "@/components/ui/button";
 import { MapPin, Locate } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { mockEvents } from "@/data/mock-events";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 // Temporary public token - you should move this to Supabase secrets in production
 mapboxgl.accessToken = "pk.eyJ1IjoicnJwYXJla2giLCJhIjoiY21hMWFlZWo0MWVoODJqb3JlcjZkMXF6aCJ9.g95mFRljtWFsl_i12Dt-ug";
 
 interface EventMapProps {
   className?: string;
+}
+
+interface Event {
+  id: string;
+  name: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  location: string;
+  city: string;
+  address: string;
+  description: string | null;
+  image_url: string | null;
+  lat: number | null;
+  lng: number | null;
 }
 
 const EventMap = ({ className }: EventMapProps) => {
@@ -21,6 +37,20 @@ const EventMap = ({ className }: EventMapProps) => {
   const [mapLoaded, setMapLoaded] = useState(false);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const { toast } = useToast();
+
+  // Fetch real events from Supabase
+  const { data: events } = useQuery({
+    queryKey: ['events'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("*")
+        .order('date', { ascending: true });
+        
+      if (error) throw error;
+      return data as Event[];
+    },
+  });
 
   // Initialize map
   useEffect(() => {
@@ -44,6 +74,36 @@ const EventMap = ({ className }: EventMapProps) => {
       mapInstance.remove();
     };
   }, []);
+
+  // Add markers for events when map is loaded and events data is available
+  useEffect(() => {
+    if (!map.current || !mapLoaded || !events?.length) return;
+    
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
+    
+    // Add markers for real events
+    events.forEach((event) => {
+      if (!event.lat || !event.lng) return; // Skip events without coordinates
+      
+      const marker = new mapboxgl.Marker({ color: "#9333ea" })
+        .setLngLat([event.lng, event.lat])
+        .setPopup(
+          new mapboxgl.Popup().setHTML(`
+            <div style="max-width: 200px;">
+              <h3 style="font-weight: bold; margin-bottom: 5px;">${event.name}</h3>
+              <p style="margin-bottom: 5px;">${new Date(event.date).toLocaleDateString()} • ${event.start_time.substring(0, 5)} - ${event.end_time.substring(0, 5)}</p>
+              <p style="margin-bottom: 5px;">${event.location}, ${event.city}</p>
+              <a href="/events/${event.id}" style="color: #9333ea; text-decoration: underline;">View details</a>
+            </div>
+          `)
+        )
+        .addTo(map.current);
+      
+      markersRef.current.push(marker);
+    });
+  }, [events, mapLoaded]);
 
   // Get user location function
   const getUserLocation = () => {
@@ -73,8 +133,10 @@ const EventMap = ({ className }: EventMapProps) => {
                 new mapboxgl.Popup().setHTML("<strong>Your location</strong>")
               );
             
-            // Load nearby events
-            loadEventsOnMap([longitude, latitude]);
+            // If we have events data, load nearby events on map
+            if (events?.length) {
+              loadEventsOnMap(events, [longitude, latitude]);
+            }
           }
           
           toast({
@@ -102,35 +164,32 @@ const EventMap = ({ className }: EventMapProps) => {
   };
 
   // Load event markers on map
-  const loadEventsOnMap = (center: [number, number]) => {
+  const loadEventsOnMap = (eventData: Event[], center: [number, number]) => {
     if (!map.current || !mapLoaded) return;
     
     // Clear existing markers
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
     
-    // Convert mock event locations to coordinates and add markers
-    mockEvents.forEach((event) => {
-      // For demo, generate random coordinates around the center point
-      const randomOffset = () => (Math.random() - 0.5) * 0.05;
-      const lng = center[0] + randomOffset();
-      const lat = center[1] + randomOffset();
-      
-      const marker = new mapboxgl.Marker({ color: "#9333ea" })
-        .setLngLat([lng, lat])
-        .setPopup(
-          new mapboxgl.Popup().setHTML(`
-            <div style="max-width: 200px;">
-              <h3 style="font-weight: bold; margin-bottom: 5px;">${event.name}</h3>
-              <p style="margin-bottom: 5px;">${event.date} • ${event.time}</p>
-              <p style="margin-bottom: 5px;">${event.location}, ${event.city}</p>
-              <a href="/events/${event.id}" style="color: #9333ea; text-decoration: underline;">View details</a>
-            </div>
-          `)
-        )
-        .addTo(map.current);
-      
-      markersRef.current.push(marker);
+    // Add events with location data as markers
+    eventData.forEach((event) => {
+      if (event.lat && event.lng) {
+        const marker = new mapboxgl.Marker({ color: "#9333ea" })
+          .setLngLat([event.lng, event.lat])
+          .setPopup(
+            new mapboxgl.Popup().setHTML(`
+              <div style="max-width: 200px;">
+                <h3 style="font-weight: bold; margin-bottom: 5px;">${event.name}</h3>
+                <p style="margin-bottom: 5px;">${new Date(event.date).toLocaleDateString()} • ${event.start_time.substring(0, 5)} - ${event.end_time.substring(0, 5)}</p>
+                <p style="margin-bottom: 5px;">${event.location}, ${event.city}</p>
+                <a href="/events/${event.id}" style="color: #9333ea; text-decoration: underline;">View details</a>
+              </div>
+            `)
+          )
+          .addTo(map.current);
+        
+        markersRef.current.push(marker);
+      }
     });
   };
 
@@ -155,7 +214,9 @@ const EventMap = ({ className }: EventMapProps) => {
           <span className="font-medium">Discover local events around you</span>
         </div>
         <p className="text-sm text-gray-600 mt-1">
-          Allow location access or search for events in a specific area
+          {events && events.length > 0 
+            ? `Showing ${events.length} events on the map`
+            : "No events found. Add your own event to see it on the map!"}
         </p>
       </div>
     </div>
