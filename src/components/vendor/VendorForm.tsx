@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -73,10 +72,13 @@ const VendorForm = () => {
       }
 
       // 2. Then create the vendor profile connected to the business
+      // Generate a UUID for the vendor ID first - this is crucial for the vendors table
+      const { data: vendorId } = await supabase.rpc('gen_random_uuid');
+      
       const { error: vendorError } = await supabase
         .from("vendors")
         .insert({
-          // Important: Do NOT set id - let the database handle vendor ID generation
+          id: vendorId, // Explicitly set the ID to avoid null constraint violation
           business_id: business.id,
           business_name: values.businessName,
           business_category: values.category,
@@ -88,20 +90,11 @@ const VendorForm = () => {
 
       if (vendorError) throw vendorError;
 
-      // Get the created vendor to use its ID for vendor_locations
-      const { data: vendorData, error: fetchVendorError } = await supabase
-        .from("vendors")
-        .select("id")
-        .eq("business_id", business.id)
-        .single();
-
-      if (fetchVendorError) throw fetchVendorError;
-
       // 3. Add vendor location
       const { error: locationError } = await supabase
         .from("vendor_locations")
         .insert({
-          vendor_id: vendorData.id, // Use the retrieved vendor ID
+          vendor_id: vendorId, // Use the generated vendor ID
           address: values.address,
           city: values.city,
           zip_code: values.zipCode
