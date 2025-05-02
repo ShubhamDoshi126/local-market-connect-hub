@@ -48,7 +48,7 @@ export const useVendorSubmission = () => {
       const { data: vendorId } = await supabase.rpc('gen_random_uuid');
       
       const { error: vendorError } = await supabase
-        .from("vendor_profiles")  // Changed from "vendors" to "vendor_profiles"
+        .from("vendors")  // Changed back to "vendors" to match TypeScript types
         .insert({
           id: vendorId,
           business_id: business.id,
