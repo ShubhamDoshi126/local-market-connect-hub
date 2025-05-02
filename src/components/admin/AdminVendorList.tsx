@@ -11,7 +11,7 @@ const AdminVendorList = () => {
     queryKey: ["vendors"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("vendors")  // Changed back to "vendors" to match TypeScript types
+        .from("vendor_profiles")  // Using vendor_profiles as that's the table name in your database
         .select("*, vendor_locations(*)");
       
       if (error) throw error;
@@ -22,7 +22,7 @@ const AdminVendorList = () => {
   const updateVendorStatus = async (vendorId: string, status: "approved" | "rejected") => {
     try {
       const { error } = await supabase
-        .from("vendors")  // Changed back to "vendors" to match TypeScript types
+        .from("vendor_profiles")  // Using vendor_profiles as that's the table name in your database
         .update({ status })
         .eq("id", vendorId);
 
