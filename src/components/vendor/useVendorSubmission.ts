@@ -48,7 +48,7 @@ export const useVendorSubmission = () => {
       const { data: vendorId } = await supabase.rpc('gen_random_uuid');
       
       const { error: vendorError } = await supabase
-        .from("vendor_profiles")  // Using vendor_profiles as that's the table name in your database
+        .from("vendors")
         .insert({
           id: vendorId,
           business_id: business.id,
