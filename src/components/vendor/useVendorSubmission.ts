@@ -26,58 +26,116 @@ export const useVendorSubmission = () => {
         return;
       }
 
-      // 1. First create a business
-      const { data: business, error: businessError } = await supabase
-        .from("businesses")
-        .insert({
-          name: values.businessName,
-          description: values.description,
-          created_by: user.id
-        })
-        .select()
-        .single();
+      // Check if the user already has a vendor profile
+      const { data: existingVendor } = await supabase
+        .from("vendors")
+        .select("id, business_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      
+      let businessId;
+      
+      // If vendor already exists, use their existing business ID
+      if (existingVendor) {
+        businessId = existingVendor.business_id;
+        
+        // Update the vendor information instead of creating a new record
+        const { error: vendorUpdateError } = await supabase
+          .from("vendors")
+          .update({
+            business_name: values.businessName,
+            business_category: values.category,
+            description: values.description,
+            website: values.website || null,
+            instagram: values.instagram || null,
+          })
+          .eq("id", user.id);
 
-      if (businessError) throw businessError;
+        if (vendorUpdateError) throw vendorUpdateError;
+      } else {
+        // 1. First create a business
+        const { data: business, error: businessError } = await supabase
+          .from("businesses")
+          .insert({
+            name: values.businessName,
+            description: values.description,
+            created_by: user.id
+          })
+          .select()
+          .single();
 
-      if (!business) {
-        throw new Error("Failed to create business");
+        if (businessError) throw businessError;
+
+        if (!business) {
+          throw new Error("Failed to create business");
+        }
+        
+        businessId = business.id;
+
+        // 2. Then create the vendor profile connected to the business
+        const { error: vendorError } = await supabase
+          .from("vendors")
+          .insert({
+            id: user.id, // Using user.id directly to satisfy the foreign key constraint
+            business_id: business.id,
+            business_name: values.businessName,
+            business_category: values.category,
+            description: values.description, 
+            website: values.website || null,
+            instagram: values.instagram || null,
+            user_id: user.id, // This is crucial for RLS policies
+          });
+
+        if (vendorError) throw vendorError;
       }
 
-      // 2. Then create the vendor profile connected to the business
-      // Instead of using a generated UUID, use user.id as the vendor ID
-      // This satisfies the foreign key constraint that requires the vendor ID to match a user ID
-      const { error: vendorError } = await supabase
-        .from("vendors")
-        .insert({
-          id: user.id, // Using user.id directly to satisfy the foreign key constraint
-          business_id: business.id,
-          business_name: values.businessName,
-          business_category: values.category,
-          description: values.description, 
-          website: values.website || null,
-          instagram: values.instagram || null,
-          user_id: user.id, // This is crucial for RLS policies
-        });
+      // 3. Update or create vendor location
+      if (existingVendor) {
+        // Update existing location
+        const { error: locationUpdateError } = await supabase
+          .from("vendor_locations")
+          .update({
+            address: values.address,
+            city: values.city,
+            zip_code: values.zipCode
+          })
+          .eq("vendor_id", user.id);
 
-      if (vendorError) throw vendorError;
+        if (locationUpdateError) {
+          // If update fails (location might not exist), try to insert
+          const { error: locationInsertError } = await supabase
+            .from("vendor_locations")
+            .insert({
+              vendor_id: user.id,
+              address: values.address,
+              city: values.city,
+              zip_code: values.zipCode
+            });
 
-      // 3. Add vendor location
-      const { error: locationError } = await supabase
-        .from("vendor_locations")
-        .insert({
-          vendor_id: user.id, // Updated to use user.id as the vendor ID
-          address: values.address,
-          city: values.city,
-          zip_code: values.zipCode
-        });
+          if (locationInsertError) throw locationInsertError;
+        }
+      } else {
+        // Create new location
+        const { error: locationError } = await supabase
+          .from("vendor_locations")
+          .insert({
+            vendor_id: user.id,
+            address: values.address,
+            city: values.city,
+            zip_code: values.zipCode
+          });
 
-      if (locationError) throw locationError;
+        if (locationError) throw locationError;
+      }
 
       toast({
-        title: "Business created!",
-        description: "You've successfully registered your vendor business.",
+        title: existingVendor ? "Business updated!" : "Business created!",
+        description: existingVendor 
+          ? "You've successfully updated your vendor business." 
+          : "You've successfully registered your vendor business.",
       });
-      navigate("/business/" + business.id);
+      
+      navigate("/business/" + businessId);
       
       return { success: true };
     } catch (error: any) {
