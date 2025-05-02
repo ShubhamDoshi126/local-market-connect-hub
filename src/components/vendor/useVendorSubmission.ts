@@ -44,13 +44,12 @@ export const useVendorSubmission = () => {
       }
 
       // 2. Then create the vendor profile connected to the business
-      // Generate a UUID for the vendor ID first
-      const { data: vendorId } = await supabase.rpc('gen_random_uuid');
-      
+      // Instead of using a generated UUID, use user.id as the vendor ID
+      // This satisfies the foreign key constraint that requires the vendor ID to match a user ID
       const { error: vendorError } = await supabase
         .from("vendors")
         .insert({
-          id: vendorId,
+          id: user.id, // Using user.id directly to satisfy the foreign key constraint
           business_id: business.id,
           business_name: values.businessName,
           business_category: values.category,
@@ -66,7 +65,7 @@ export const useVendorSubmission = () => {
       const { error: locationError } = await supabase
         .from("vendor_locations")
         .insert({
-          vendor_id: vendorId,
+          vendor_id: user.id, // Updated to use user.id as the vendor ID
           address: values.address,
           city: values.city,
           zip_code: values.zipCode
