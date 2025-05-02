@@ -106,7 +106,7 @@ export const useVendorSubmission = () => {
           const { error: locationInsertError } = await supabase
             .from("vendor_locations")
             .insert({
-              vendor_id: user.id,
+              vendor_id: user.id,  // Using user ID as the vendor ID
               address: values.address,
               city: values.city,
               zip_code: values.zipCode
@@ -119,7 +119,7 @@ export const useVendorSubmission = () => {
         const { error: locationError } = await supabase
           .from("vendor_locations")
           .insert({
-            vendor_id: user.id,
+            vendor_id: user.id,  // Using user ID as the vendor ID
             address: values.address,
             city: values.city,
             zip_code: values.zipCode
