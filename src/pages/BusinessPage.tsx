@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Calendar, MapPin, Link as LinkIcon, Instagram } from "lucide-react";
+import { Calendar, MapPin, Link as LinkIcon, Instagram, Users } from "lucide-react";
 import { format } from 'date-fns';
 
 import Navbar from "@/components/layout/Navbar";
@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import BusinessTeam from "@/components/business/BusinessTeam";
 
 interface Business {
   id: string;
@@ -54,6 +56,7 @@ const BusinessPage = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [isOwner, setIsOwner] = useState(false);
+  const [isTeamMember, setIsTeamMember] = useState(false);
 
   // Fetch business details
   const { data: business, isLoading: isBusinessLoading, error: businessError } = useQuery({
@@ -87,6 +90,25 @@ const BusinessPage = () => {
     enabled: !!id,
   });
 
+  // Check if user is a team member
+  const { data: teamMemberData } = useQuery({
+    queryKey: ["team-member", id, user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      
+      const { data, error } = await supabase
+        .from("business_members")
+        .select("id, role")
+        .eq("business_id", id)
+        .eq("user_id", user.id)
+        .single();
+      
+      if (error) return null;
+      return data;
+    },
+    enabled: !!id && !!user,
+  });
+
   // Fetch events associated with the business
   const { data: events, isLoading: isEventsLoading, error: eventsError } = useQuery({
     queryKey: ["events", id],
@@ -108,7 +130,13 @@ const BusinessPage = () => {
     } else {
       setIsOwner(false);
     }
-  }, [user, business]);
+
+    if (teamMemberData) {
+      setIsTeamMember(true);
+    } else {
+      setIsTeamMember(false);
+    }
+  }, [user, business, teamMemberData]);
 
   if (isBusinessLoading) {
     return (
@@ -161,7 +189,7 @@ const BusinessPage = () => {
                   </div>
                 )}
               </div>
-              {isOwner && (
+              {(isOwner || isTeamMember) && (
                 <div>
                   <Link to="/vendor/edit">
                     <Button variant="outline">Edit Business</Button>
@@ -175,81 +203,101 @@ const BusinessPage = () => {
             </p>
           </div>
 
-          <Card className="mb-8">
-            <CardContent className="p-6">
-              <h2 className="text-2xl font-semibold mb-4">About</h2>
-              <p className="text-gray-700">{business?.description || "No description available."}</p>
-              
-              {vendor && (
-                <div className="mt-4">
-                  {vendor.website && (
-                    <div className="flex items-center mb-2">
-                      <LinkIcon className="h-4 w-4 mr-2 text-gray-500" />
-                      <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                        {vendor.website}
-                      </a>
-                    </div>
-                  )}
-                  {vendor.instagram && (
-                    <div className="flex items-center mb-2">
-                      <Instagram className="h-4 w-4 mr-2 text-gray-500" />
-                      <a href={`https://instagram.com/${vendor.instagram}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                        @{vendor.instagram}
-                      </a>
-                    </div>
-                  )}
-                </div>
+          <Tabs defaultValue="about">
+            <TabsList>
+              <TabsTrigger value="about">About</TabsTrigger>
+              <TabsTrigger value="events">Events</TabsTrigger>
+              {(isOwner || isTeamMember) && (
+                <TabsTrigger value="team">Team</TabsTrigger>
               )}
-            </CardContent>
-          </Card>
-
-          <div>
-            <h2 className="text-2xl font-semibold mb-4">Upcoming Events</h2>
-            {isEventsLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-48" />
-                <Skeleton className="h-48" />
-                <Skeleton className="h-48" />
-              </div>
-            ) : eventsError ? (
-              <p className="text-red-500">Error loading events.</p>
-            ) : events && events.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {events.map((event) => (
-                  <Card key={event.id} className="overflow-hidden">
-                    <div className="aspect-w-16 aspect-h-9">
-                      <img
-                        src={event.image_url || "https://via.placeholder.com/640x360"}
-                        alt={event.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <CardContent className="p-6">
-                      <h3 className="text-xl font-semibold mb-2">{event.name}</h3>
-                      <div className="flex items-center text-gray-600 mb-2">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        {format(new Date(event.date), 'MMMM d, yyyy')}
-                      </div>
-                      <div className="flex items-center text-gray-600 mb-2">
-                        <MapPin className="h-4 w-4 mr-2" />
-                        {event.location}, {event.city}
-                      </div>
-                      <p className="text-gray-700">{event.description || "No description available."}</p>
-                      <Link to={`/events/${event.id}`} className="text-blue-500 hover:underline mt-4 block">
-                        View Details
-                      </Link>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
+            </TabsList>
+            
+            <TabsContent value="about">
               <Card>
-                <CardContent className="p-6 text-center">
-                  <p className="text-gray-600">No upcoming events found.</p>
+                <CardContent className="p-6">
+                  <h2 className="text-2xl font-semibold mb-4">About</h2>
+                  <p className="text-gray-700">{business?.description || "No description available."}</p>
+                  
+                  {vendor && (
+                    <div className="mt-4">
+                      {vendor.website && (
+                        <div className="flex items-center mb-2">
+                          <LinkIcon className="h-4 w-4 mr-2 text-gray-500" />
+                          <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                            {vendor.website}
+                          </a>
+                        </div>
+                      )}
+                      {vendor.instagram && (
+                        <div className="flex items-center mb-2">
+                          <Instagram className="h-4 w-4 mr-2 text-gray-500" />
+                          <a href={`https://instagram.com/${vendor.instagram}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                            @{vendor.instagram}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="events">
+              <div>
+                <h2 className="text-2xl font-semibold mb-4">Upcoming Events</h2>
+                {isEventsLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-48" />
+                    <Skeleton className="h-48" />
+                    <Skeleton className="h-48" />
+                  </div>
+                ) : eventsError ? (
+                  <p className="text-red-500">Error loading events.</p>
+                ) : events && events.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {events.map((event) => (
+                      <Card key={event.id} className="overflow-hidden">
+                        <div className="aspect-w-16 aspect-h-9">
+                          <img
+                            src={event.image_url || "https://via.placeholder.com/640x360"}
+                            alt={event.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <CardContent className="p-6">
+                          <h3 className="text-xl font-semibold mb-2">{event.name}</h3>
+                          <div className="flex items-center text-gray-600 mb-2">
+                            <Calendar className="h-4 w-4 mr-2" />
+                            {format(new Date(event.date), 'MMMM d, yyyy')}
+                          </div>
+                          <div className="flex items-center text-gray-600 mb-2">
+                            <MapPin className="h-4 w-4 mr-2" />
+                            {event.location}, {event.city}
+                          </div>
+                          <p className="text-gray-700">{event.description || "No description available."}</p>
+                          <Link to={`/events/${event.id}`} className="text-blue-500 hover:underline mt-4 block">
+                            View Details
+                          </Link>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <p className="text-gray-600">No upcoming events found.</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </TabsContent>
+
+            {(isOwner || isTeamMember) && (
+              <TabsContent value="team">
+                <BusinessTeam businessId={id!} isOwner={isOwner} />
+              </TabsContent>
             )}
-          </div>
+          </Tabs>
         </div>
       </main>
       <Footer />

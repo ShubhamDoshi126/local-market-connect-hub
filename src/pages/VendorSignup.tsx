@@ -3,6 +3,8 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import VendorForm from "@/components/vendor/VendorForm";
 import VendorBenefits from "@/components/vendor/VendorBenefits";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import JoinBusinessForm from "@/components/vendor/JoinBusinessForm";
 
 const VendorSignup = () => {
   return (
@@ -19,8 +21,20 @@ const VendorSignup = () => {
               No commissions, just real connections.
             </p>
           </div>
+          
+          <Tabs defaultValue="create" className="mb-8">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="create">Create New Business</TabsTrigger>
+              <TabsTrigger value="join">Join Existing Business</TabsTrigger>
+            </TabsList>
+            <TabsContent value="create" className="mt-6">
+              <VendorForm />
+            </TabsContent>
+            <TabsContent value="join" className="mt-6">
+              <JoinBusinessForm />
+            </TabsContent>
+          </Tabs>
 
-          <VendorForm />
           <VendorBenefits />
         </div>
       </main>
