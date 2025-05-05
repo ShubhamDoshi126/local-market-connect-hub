@@ -3,3 +3,6 @@ project_id = "mfuuhpflmglnubkpuohl"
 
 [functions.check_business_access]
 verify_jwt = true
+
+[functions.create_business_function]
+verify_jwt = true

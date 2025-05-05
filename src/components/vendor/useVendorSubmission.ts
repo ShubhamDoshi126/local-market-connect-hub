@@ -53,30 +53,32 @@ export const useVendorSubmission = () => {
 
         if (vendorUpdateError) throw vendorUpdateError;
       } else {
-        // 1. First create a business without using the direct FK relationship
-        const { data: business, error: businessError } = await supabase.rpc('create_business', {
-          p_name: values.businessName,
-          p_description: values.description,
-          p_user_id: user.id
-        });
-
-        if (businessError) {
-          console.error("Error from create_business RPC:", businessError);
-          // Fallback to direct insert if RPC doesn't exist yet
-          const { data: directBusiness, error: directBusinessError } = await supabase
-            .from("businesses")
-            .insert({
+        // 1. First create a business directly
+        // Using direct business creation instead of RPC to avoid type issues
+        const { data: directBusiness, error: directBusinessError } = await supabase
+          .from("businesses")
+          .insert({
+            name: values.businessName,
+            description: values.description,
+            created_by: user.id
+          })
+          .select()
+          .single();
+        
+        if (directBusinessError) {
+          // If direct insert fails, try using our Edge Function
+          const { data, error } = await supabase.functions.invoke('create_business_function', {
+            body: {
               name: values.businessName,
               description: values.description,
-              created_by: user.id
-            })
-            .select()
-            .single();
+              user_id: user.id
+            }
+          });
           
-          if (directBusinessError) throw directBusinessError;
-          businessId = directBusiness.id;
+          if (error) throw new Error(error.message || "Failed to create business");
+          businessId = data?.id;
         } else {
-          businessId = business;
+          businessId = directBusiness.id;
         }
 
         if (!businessId) {
