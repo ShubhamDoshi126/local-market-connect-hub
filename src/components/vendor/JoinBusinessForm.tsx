@@ -193,13 +193,13 @@ const JoinBusinessForm = () => {
         .select("business_id")
         .eq("code", values.inviteCode)
         .eq("status", "active")
-        .single();
+        .maybeSingle();
 
       if (inviteError || !invite) {
         throw new Error("Invalid or expired invite code");
       }
 
-      joinBusiness(invite.business_id);
+      await joinBusiness(invite.business_id);
     } catch (error: any) {
       toast({
         variant: "destructive",

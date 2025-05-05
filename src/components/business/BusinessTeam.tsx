@@ -13,6 +13,7 @@ import { Users, UserPlus, Clipboard, CheckCircle } from "lucide-react";
 import * as z from "zod";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { businessInviteSchema } from "../business/BusinessInviteSchema";
 
 interface TeamMember {
   id: string;
@@ -28,11 +29,7 @@ interface BusinessTeamProps {
   isOwner: boolean;
 }
 
-const inviteFormSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-});
-
-type InviteFormValues = z.infer<typeof inviteFormSchema>;
+type InviteFormValues = z.infer<typeof businessInviteSchema>;
 
 const BusinessTeam = ({ businessId, isOwner }: BusinessTeamProps) => {
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -44,9 +41,10 @@ const BusinessTeam = ({ businessId, isOwner }: BusinessTeamProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const form = useForm<InviteFormValues>({
-    resolver: zodResolver(inviteFormSchema),
+    resolver: zodResolver(businessInviteSchema),
     defaultValues: {
       email: "",
+      role: "member",
     },
   });
 
@@ -97,11 +95,13 @@ const BusinessTeam = ({ businessId, isOwner }: BusinessTeamProps) => {
       const code = Math.random().toString(36).substring(2, 10).toUpperCase();
       
       // Check if an active invite already exists
-      const { data: existingInvites } = await supabase
+      const { data: existingInvites, error: queryError } = await supabase
         .from("business_invites")
         .select("id, code")
         .eq("business_id", businessId)
         .eq("status", "active");
+      
+      if (queryError) throw queryError;
       
       if (existingInvites && existingInvites.length > 0) {
         // Reuse existing code

@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Calendar, MapPin, Link as LinkIcon, Instagram, Users } from "lucide-react";
+import { Calendar, MapPin, Link as LinkIcon, Instagram, Users, Edit } from "lucide-react";
 import { format } from 'date-fns';
 
 import Navbar from "@/components/layout/Navbar";
@@ -57,6 +58,7 @@ const BusinessPage = () => {
   const { user } = useAuth();
   const [isOwner, setIsOwner] = useState(false);
   const [isTeamMember, setIsTeamMember] = useState(false);
+  const [teamRole, setTeamRole] = useState<string | null>(null);
 
   // Fetch business details
   const { data: business, isLoading: isBusinessLoading, error: businessError } = useQuery({
@@ -101,7 +103,7 @@ const BusinessPage = () => {
         .select("id, role")
         .eq("business_id", id)
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
       
       if (error) return null;
       return data;
@@ -133,8 +135,10 @@ const BusinessPage = () => {
 
     if (teamMemberData) {
       setIsTeamMember(true);
+      setTeamRole(teamMemberData.role);
     } else {
       setIsTeamMember(false);
+      setTeamRole(null);
     }
   }, [user, business, teamMemberData]);
 
@@ -174,6 +178,9 @@ const BusinessPage = () => {
     );
   }
 
+  // Check if user has edit permissions
+  const canEdit = isOwner || (isTeamMember && (teamRole === 'owner' || teamRole === 'admin'));
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -189,10 +196,13 @@ const BusinessPage = () => {
                   </div>
                 )}
               </div>
-              {(isOwner || isTeamMember) && (
+              {canEdit && (
                 <div>
-                  <Link to="/vendor/edit">
-                    <Button variant="outline">Edit Business</Button>
+                  <Link to={`/business/${id}/edit`}>
+                    <Button variant="outline">
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Business
+                    </Button>
                   </Link>
                 </div>
               )}

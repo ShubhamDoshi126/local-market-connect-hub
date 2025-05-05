@@ -9,6 +9,8 @@ import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import BusinessTeam from "@/components/business/BusinessTeam";
 
 const EditBusiness = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,7 +33,7 @@ const EditBusiness = () => {
         .single();
       
       if (business?.created_by === user.id) {
-        return { canEdit: true, role: "owner" };
+        return { canEdit: true, role: "owner", isOwner: true };
       }
 
       // Check if user is a team member with edit permission
@@ -40,11 +42,12 @@ const EditBusiness = () => {
         .select("role")
         .eq("business_id", id)
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
       
       return { 
         canEdit: !!member && ["owner", "admin"].includes(member.role),
-        role: member?.role
+        role: member?.role,
+        isOwner: member?.role === "owner"
       };
     },
     enabled: !!user && !!id,
@@ -105,22 +108,37 @@ const EditBusiness = () => {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Edit Business</h1>
             <p className="text-gray-600 mt-2">
-              Update your business information and settings
+              Update your business information and manage team members
             </p>
           </div>
 
-          <div className="bg-white shadow-sm rounded-lg p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Business Details</h2>
-            <p className="text-gray-600 mb-6">
-              This is a placeholder for the business edit form. In a complete implementation,
-              you would be able to edit all business details here.
-            </p>
-            <div className="flex space-x-4">
-              <Button onClick={() => navigate(`/business/${id}`)}>
-                Return to Business Page
-              </Button>
-            </div>
-          </div>
+          <Tabs defaultValue="details">
+            <TabsList>
+              <TabsTrigger value="details">Business Details</TabsTrigger>
+              <TabsTrigger value="team">Team Management</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="details">
+              <div className="bg-white shadow-sm rounded-lg p-6 mb-6">
+                <h2 className="text-xl font-semibold mb-4">Business Details</h2>
+                <p className="text-gray-600 mb-6">
+                  This is a placeholder for the business edit form. In a complete implementation,
+                  you would be able to edit all business details here.
+                </p>
+                <div className="flex space-x-4">
+                  <Button onClick={() => navigate(`/business/${id}`)}>
+                    Return to Business Page
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="team">
+              {permission?.isOwner && id && (
+                <BusinessTeam businessId={id} isOwner={true} />
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
       <Footer />
