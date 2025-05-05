@@ -86,6 +86,7 @@ export const useVendorSubmission = () => {
         }
         
         // 2. Then create the vendor profile connected to the business
+        // IMPORTANT: Set the ID explicitly to the user's ID to prevent duplicate key violations
         const { error: vendorError } = await supabase
           .from("vendors")
           .insert({
