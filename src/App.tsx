@@ -17,6 +17,7 @@ import EventDetail from "./pages/EventDetail";
 import BusinessPage from "./pages/BusinessPage";
 import BusinessProducts from "./pages/BusinessProducts";
 import EditBusiness from "./pages/EditBusiness";
+import VendorDashboardPage from "./pages/VendorDashboardPage";
 
 // Create a client
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ function App() {
               <Route path="/events/create" element={<CreateEvent />} />
               <Route path="/events/:id" element={<EventDetail />} />
               <Route path="/vendor-signup" element={<VendorSignup />} />
+              <Route path="/vendor/dashboard" element={<VendorDashboardPage />} />
               <Route path="/business/:id" element={<BusinessPage />} />
               <Route path="/business/:id/edit" element={<EditBusiness />} />
               <Route path="/business/:id/products" element={<BusinessProducts />} />

@@ -4,7 +4,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { MapPin, Calendar, Clock, Users } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -12,13 +12,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EventVendorList from "@/components/event/EventVendorList";
+import EventVendorInvite from "@/components/event/EventVendorInvite";
+import EventProductList from "@/components/event/EventProductList";
+import VendorEventProducts from "@/components/vendor/VendorEventProducts";
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   const [isEventOwner, setIsEventOwner] = useState(false);
+  const [userBusinessId, setUserBusinessId] = useState<string | null>(null);
+  const [vendorStatus, setVendorStatus] = useState<string | null>(null);
 
   // Fetch event details
   const { data: event, isLoading, error } = useQuery({
@@ -44,6 +50,53 @@ const EventDetail = () => {
       setIsEventOwner(false);
     }
   }, [user, event]);
+
+  // Check if user is a vendor and their status for this event
+  useEffect(() => {
+    const checkVendorStatus = async () => {
+      if (!user || !id) return;
+
+      try {
+        // First check if user is associated with a business
+        const { data: vendorData } = await supabase
+          .from("vendors")
+          .select("business_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        let businessId = vendorData?.business_id;
+
+        if (!businessId) {
+          // Check if they're a business member
+          const { data: memberData } = await supabase
+            .from("business_members")
+            .select("business_id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          businessId = memberData?.business_id;
+        }
+
+        if (businessId) {
+          setUserBusinessId(businessId);
+
+          // Check vendor status for this event
+          const { data: statusData } = await supabase
+            .from("event_vendors")
+            .select("status")
+            .eq("event_id", id)
+            .eq("business_id", businessId)
+            .maybeSingle();
+
+          setVendorStatus(statusData?.status || null);
+        }
+      } catch (error) {
+        console.error("Error checking vendor status:", error);
+      }
+    };
+
+    checkVendorStatus();
+  }, [user, id]);
 
   // Handle errors
   if (error) {
@@ -123,13 +176,47 @@ const EventDetail = () => {
               </div>
 
               <div className="mt-10">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold">Vendors at This Event</h2>
-                  {isEventOwner && (
-                    <Button>Invite Vendors</Button>
+                <Tabs defaultValue="products">
+                  <TabsList>
+                    <TabsTrigger value="products">Products</TabsTrigger>
+                    <TabsTrigger value="vendors">Vendors</TabsTrigger>
+                    {vendorStatus === "accepted" && (
+                      <TabsTrigger value="vendor-products">My Products</TabsTrigger>
+                    )}
+                    {isEventOwner && (
+                      <TabsTrigger value="invite">Invite Vendors</TabsTrigger>
+                    )}
+                  </TabsList>
+
+                  <TabsContent value="products" className="mt-6">
+                    <h2 className="text-2xl font-bold mb-6">Products at This Event</h2>
+                    <EventProductList eventId={event.id} />
+                  </TabsContent>
+
+                  <TabsContent value="vendors" className="mt-6">
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-2xl font-bold">Vendors at This Event</h2>
+                    </div>
+                    <EventVendorList eventId={event.id} isOwner={isEventOwner} />
+                  </TabsContent>
+
+                  {vendorStatus === "accepted" && userBusinessId && (
+                    <TabsContent value="vendor-products" className="mt-6">
+                      <h2 className="text-2xl font-bold mb-6">Manage My Products</h2>
+                      <VendorEventProducts 
+                        eventId={event.id} 
+                        businessId={userBusinessId} 
+                      />
+                    </TabsContent>
                   )}
-                </div>
-                <EventVendorList eventId={event.id} isOwner={isEventOwner} />
+
+                  {isEventOwner && (
+                    <TabsContent value="invite" className="mt-6">
+                      <h2 className="text-2xl font-bold mb-6">Invite Vendors</h2>
+                      <EventVendorInvite eventId={event.id} />
+                    </TabsContent>
+                  )}
+                </Tabs>
               </div>
             </>
           ) : (

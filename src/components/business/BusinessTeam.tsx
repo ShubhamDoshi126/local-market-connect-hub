@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -51,14 +50,15 @@ const BusinessTeam = ({ businessId, isOwner }: BusinessTeamProps) => {
   const fetchTeamMembers = async () => {
     setLoading(true);
     try {
+      // Fixed query to properly join with profiles table
       const { data, error } = await supabase
         .from("business_members")
         .select(`
           id,
           user_id,
           role,
-          profiles:user_id (
-            email:id,
+          profiles(
+            email,
             first_name,
             last_name
           )
@@ -72,6 +72,7 @@ const BusinessTeam = ({ businessId, isOwner }: BusinessTeamProps) => {
           id: member.id,
           user_id: member.user_id,
           role: member.role,
+          // Fixed to safely access profile data
           email: member.profiles?.email,
           first_name: member.profiles?.first_name,
           last_name: member.profiles?.last_name
