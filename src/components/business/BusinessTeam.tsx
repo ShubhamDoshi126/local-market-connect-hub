@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -50,34 +51,50 @@ const BusinessTeam = ({ businessId, isOwner }: BusinessTeamProps) => {
   const fetchTeamMembers = async () => {
     setLoading(true);
     try {
-      // Fixed query to properly join with profiles table
-      const { data, error } = await supabase
+      // Get business members
+      const { data: membersData, error: membersError } = await supabase
         .from("business_members")
         .select(`
           id,
           user_id,
-          role,
-          profiles(
-            email,
-            first_name,
-            last_name
-          )
+          role
         `)
         .eq("business_id", businessId);
 
-      if (error) throw error;
+      if (membersError) throw membersError;
+      
+      // For each member, get their profile information
+      const membersWithProfiles: TeamMember[] = [];
+      
+      for (const member of membersData) {
+        if (member.user_id) {
+          // Fetch profile information separately
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("first_name, last_name, id")
+            .eq("id", member.user_id)
+            .maybeSingle();
+          
+          membersWithProfiles.push({
+            id: member.id,
+            user_id: member.user_id,
+            role: member.role,
+            first_name: profileData?.first_name || null,
+            last_name: profileData?.last_name || null,
+            // Use email placeholder since we don't have direct access to auth.users
+            email: `user-${member.user_id.substring(0, 8)}@example.com`
+          });
+        } else {
+          // If no user_id, still add the member with minimal data
+          membersWithProfiles.push({
+            id: member.id,
+            user_id: null,
+            role: member.role
+          });
+        }
+      }
 
-      setMembers(
-        data.map(member => ({
-          id: member.id,
-          user_id: member.user_id,
-          role: member.role,
-          // Fixed to safely access profile data
-          email: member.profiles?.email,
-          first_name: member.profiles?.first_name,
-          last_name: member.profiles?.last_name
-        }))
-      );
+      setMembers(membersWithProfiles);
     } catch (error: any) {
       console.error("Error fetching team members:", error);
       toast({

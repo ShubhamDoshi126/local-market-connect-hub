@@ -1,246 +1,278 @@
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/auth/AuthProvider";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { Store, Calendar, PackageSearch, Users, ShoppingBag, Heart } from "lucide-react";
 import VendorEventInvites from "./VendorEventInvites";
 
-interface ProductInterest {
-  product_id: string;
-  product_name: string;
-  event_id: string;
-  event_name: string;
+interface Product {
+  id: string;
+  name: string;
   interest_count: number;
+}
+
+interface EventStats {
+  total: number;
+  upcoming: number;
+  past: number;
 }
 
 const VendorDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [businessId, setBusinessId] = useState<string | null>(null);
-  const [productInterests, setProductInterests] = useState<ProductInterest[]>([]);
+  const [businessName, setBusinessName] = useState("");
+  const [productStats, setProductStats] = useState<Product[]>([]);
+  const [eventStats, setEventStats] = useState<EventStats>({ total: 0, upcoming: 0, past: 0 });
+  const [totalInterests, setTotalInterests] = useState(0);
 
   useEffect(() => {
-    const fetchUserBusiness = async () => {
+    const fetchVendorData = async () => {
       if (!user) return;
 
       try {
-        // First check if user is a vendor
-        const { data: vendorData } = await supabase
+        // Get vendor details
+        const { data: vendorData, error: vendorError } = await supabase
           .from("vendors")
-          .select("business_id")
+          .select("business_id, business_name")
           .eq("user_id", user.id)
           .maybeSingle();
 
-        if (vendorData?.business_id) {
-          setBusinessId(vendorData.business_id);
-          return;
-        }
-
-        // If not a direct vendor, check if they're a business member
-        const { data: memberData } = await supabase
-          .from("business_members")
-          .select("business_id")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        if (memberData?.business_id) {
-          setBusinessId(memberData.business_id);
-        }
-      } catch (error) {
-        console.error("Error fetching business:", error);
-      }
-    };
-
-    fetchUserBusiness();
-  }, [user]);
-
-  useEffect(() => {
-    const fetchProductInterests = async () => {
-      if (!businessId) return;
-      
-      setLoading(true);
-      try {
-        // Get products for this business
-        const { data: products, error: productsError } = await supabase
-          .from("products")
-          .select("id, name")
-          .eq("business_id", businessId);
-
-        if (productsError) throw productsError;
-
-        if (!products || products.length === 0) {
-          setProductInterests([]);
+        if (vendorError) throw vendorError;
+        
+        if (!vendorData || !vendorData.business_id) {
           setLoading(false);
           return;
         }
 
-        // Get event products for this business
-        const { data: eventProducts, error: eventProductsError } = await supabase
-          .from("event_products")
-          .select(`
-            product_id,
-            event_id,
-            events (
-              name
-            )
-          `)
-          .eq("business_id", businessId);
+        setBusinessId(vendorData.business_id);
+        setBusinessName(vendorData.business_name);
 
-        if (eventProductsError) throw eventProductsError;
+        // Get product interest stats
+        const { data: productsWithInterest, error: productsError } = await supabase
+          .from("products")
+          .select("id, name")
+          .eq("business_id", vendorData.business_id);
 
-        // Map product IDs to their names
-        const productMap = products.reduce((acc, product) => {
-          acc[product.id] = product.name;
-          return acc;
-        }, {} as Record<string, string>);
+        if (productsError) throw productsError;
 
-        // Get interest counts
-        const allInterests: ProductInterest[] = [];
+        // Count interests for each product
+        const productsWithCounts = await Promise.all(
+          productsWithInterest.map(async (product) => {
+            // For each product, count the interests
+            const { count, error: countError } = await supabase
+              .from("product_interests")
+              .select("*", { count: "exact", head: true })
+              .eq("product_id", product.id);
+
+            if (countError) {
+              console.error("Error counting interests:", countError);
+              return { ...product, interest_count: 0 };
+            }
+
+            return { ...product, interest_count: count || 0 };
+          })
+        );
+
+        // Sort by interest count (highest first)
+        productsWithCounts.sort((a, b) => b.interest_count - a.interest_count);
         
-        for (const eventProduct of eventProducts) {
-          const { data: interests, error: interestsError } = await supabase
-            .from("product_interests")
-            .select("count")
-            .eq("event_id", eventProduct.event_id)
-            .eq("product_id", eventProduct.product_id)
-            .count();
+        setProductStats(productsWithCounts);
+        setTotalInterests(productsWithCounts.reduce((sum, product) => sum + product.interest_count, 0));
 
-          if (interestsError) continue;
+        // Get event stats
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Get all events the vendor is participating in
+        const { data: events, error: eventsError } = await supabase
+          .from("event_vendors")
+          .select(`
+            event_id,
+            status, 
+            events(date)
+          `)
+          .eq("business_id", vendorData.business_id)
+          .eq("status", "confirmed");
 
-          allInterests.push({
-            product_id: eventProduct.product_id || "",
-            product_name: productMap[eventProduct.product_id || ""] || "Unknown Product",
-            event_id: eventProduct.event_id || "",
-            event_name: eventProduct.events?.name || "Unknown Event",
-            interest_count: interests.count || 0
-          });
-        }
+        if (eventsError) throw eventsError;
 
-        setProductInterests(allInterests);
+        const totalEvents = events.length;
+        const upcomingEvents = events.filter(e => e.events.date >= today).length;
+        const pastEvents = totalEvents - upcomingEvents;
+
+        setEventStats({
+          total: totalEvents,
+          upcoming: upcomingEvents,
+          past: pastEvents
+        });
       } catch (error: any) {
-        console.error("Error fetching product interests:", error);
+        console.error("Error fetching vendor data:", error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to load product interest data",
+          description: "Could not load vendor dashboard data",
         });
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProductInterests();
-  }, [businessId]);
+    fetchVendorData();
+  }, [user]);
 
-  if (!user) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-center py-4">Please log in to view your dashboard</p>
-        </CardContent>
-      </Card>
-    );
+  if (loading) {
+    return <div>Loading vendor dashboard...</div>;
   }
 
   if (!businessId) {
     return (
       <Card>
-        <CardContent className="pt-6">
-          <p className="text-center py-4">You need to be associated with a business to view the dashboard</p>
+        <CardHeader>
+          <CardTitle>Welcome to your Vendor Dashboard</CardTitle>
+          <CardDescription>
+            You need to register as a vendor or join a business to access the full dashboard.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={() => navigate("/vendor-signup")}>
+            Register as a Vendor
+          </Button>
         </CardContent>
       </Card>
     );
   }
 
-  // Prepare chart data
-  const chartData = productInterests
-    .filter(item => item.interest_count > 0)
-    .map(item => ({
-      name: item.product_name.length > 20 
-        ? item.product_name.substring(0, 20) + '...' 
-        : item.product_name,
-      interests: item.interest_count,
-      event: item.event_name
-    }));
-
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="invites">
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{businessName}</h1>
+          <p className="text-muted-foreground">
+            Welcome to your vendor dashboard
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate(`/business/${businessId}`)}
+          >
+            <Store className="h-4 w-4 mr-2" />
+            View Business Page
+          </Button>
+          <Button 
+            onClick={() => navigate(`/business/${businessId}/products`)}
+          >
+            <ShoppingBag className="h-4 w-4 mr-2" />
+            Manage Products
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total Customer Interests
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center">
+              <Heart className="h-4 w-4 mr-2 text-rose-500" />
+              <div className="text-2xl font-bold">{totalInterests}</div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">
+              Upcoming Events
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center">
+              <Calendar className="h-4 w-4 mr-2 text-blue-500" />
+              <div className="text-2xl font-bold">{eventStats.upcoming}</div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">
+              Products
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center">
+              <PackageSearch className="h-4 w-4 mr-2 text-emerald-500" />
+              <div className="text-2xl font-bold">{productStats.length}</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="interests">
         <TabsList>
-          <TabsTrigger value="invites">Event Invitations</TabsTrigger>
           <TabsTrigger value="interests">Product Interests</TabsTrigger>
+          <TabsTrigger value="invites">Event Invites</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="invites" className="pt-4">
-          <VendorEventInvites />
-        </TabsContent>
-        
-        <TabsContent value="interests" className="pt-4">
+        <TabsContent value="interests">
           <Card>
             <CardHeader>
-              <CardTitle>Product Interest Overview</CardTitle>
+              <CardTitle className="flex items-center">
+                <Heart className="h-5 w-5 mr-2 text-rose-500" />
+                Top Products by Interest
+              </CardTitle>
+              <CardDescription>
+                These products are receiving the most interest from potential customers
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {loading ? (
-                <Skeleton className="h-72 w-full" />
-              ) : chartData.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <p>No product interests recorded yet</p>
+              {productStats.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <p>No product interest data available yet.</p>
+                  <p className="text-sm mt-1">Add products to your business to track customer interest!</p>
                 </div>
               ) : (
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={chartData}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="name" 
-                        angle={-45} 
-                        textAnchor="end" 
-                        height={70} 
-                      />
-                      <YAxis />
-                      <Tooltip 
-                        formatter={(value, name, props) => [
-                          `${value} interests`, props.payload.event
-                        ]} 
-                      />
-                      <Bar dataKey="interests" fill="#8884d8" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="space-y-4">
+                  {productStats.slice(0, 5).map(product => (
+                    <div key={product.id} className="flex justify-between border-b pb-2">
+                      <span>{product.name}</span>
+                      <span className="font-medium flex items-center">
+                        <Heart className="h-3 w-3 mr-1 text-rose-500" />
+                        {product.interest_count}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
-              
-              {!loading && chartData.length > 0 && (
-                <div className="mt-6 border-t pt-4">
-                  <h3 className="font-medium mb-2">Most Interested Products</h3>
-                  <ul className="space-y-2">
-                    {productInterests
-                      .sort((a, b) => b.interest_count - a.interest_count)
-                      .slice(0, 5)
-                      .map((item, index) => (
-                        <li key={item.product_id + item.event_id} className="flex justify-between">
-                          <div>
-                            <span className="font-medium">{item.product_name}</span>
-                            <span className="text-sm text-gray-500 ml-2">
-                              at {item.event_name}
-                            </span>
-                          </div>
-                          <span className="font-medium">{item.interest_count} interests</span>
-                        </li>
-                      ))}
-                  </ul>
+              {productStats.length > 0 && (
+                <div className="mt-4">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => navigate(`/business/${businessId}/products`)}
+                    className="w-full"
+                  >
+                    View All Products
+                  </Button>
                 </div>
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="invites">
+          {businessId && <VendorEventInvites businessId={businessId} />}
         </TabsContent>
       </Tabs>
     </div>

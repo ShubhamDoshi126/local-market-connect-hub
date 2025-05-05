@@ -53,31 +53,42 @@ export const useVendorSubmission = () => {
 
         if (vendorUpdateError) throw vendorUpdateError;
       } else {
-        // 1. First create a business
-        const { data: business, error: businessError } = await supabase
-          .from("businesses")
-          .insert({
-            name: values.businessName,
-            description: values.description,
-            created_by: user.id
-          })
-          .select()
-          .single();
+        // 1. First create a business without using the direct FK relationship
+        const { data: business, error: businessError } = await supabase.rpc('create_business', {
+          p_name: values.businessName,
+          p_description: values.description,
+          p_user_id: user.id
+        });
 
-        if (businessError) throw businessError;
+        if (businessError) {
+          console.error("Error from create_business RPC:", businessError);
+          // Fallback to direct insert if RPC doesn't exist yet
+          const { data: directBusiness, error: directBusinessError } = await supabase
+            .from("businesses")
+            .insert({
+              name: values.businessName,
+              description: values.description,
+              created_by: user.id
+            })
+            .select()
+            .single();
+          
+          if (directBusinessError) throw directBusinessError;
+          businessId = directBusiness.id;
+        } else {
+          businessId = business;
+        }
 
-        if (!business) {
+        if (!businessId) {
           throw new Error("Failed to create business");
         }
         
-        businessId = business.id;
-
         // 2. Then create the vendor profile connected to the business
         const { error: vendorError } = await supabase
           .from("vendors")
           .insert({
             id: user.id, // Using user.id directly to satisfy the foreign key constraint
-            business_id: business.id,
+            business_id: businessId,
             business_name: values.businessName,
             business_category: values.category,
             description: values.description, 
@@ -92,26 +103,34 @@ export const useVendorSubmission = () => {
       // 3. Update or create vendor location
       if (existingVendor) {
         // Update existing location
-        const { error: locationUpdateError } = await supabase
+        const { data: existingLocation } = await supabase
           .from("vendor_locations")
-          .update({
-            address: values.address,
-            city: values.city,
-            zip_code: values.zipCode
-          })
-          .eq("vendor_id", user.id);
+          .select("id")
+          .eq("vendor_id", user.id)
+          .maybeSingle();
 
-        if (locationUpdateError) {
-          // If update fails (location might not exist), try to insert
+        if (existingLocation) {
+          const { error: locationUpdateError } = await supabase
+            .from("vendor_locations")
+            .update({
+              address: values.address,
+              city: values.city,
+              zip_code: values.zipCode
+            })
+            .eq("id", existingLocation.id);
+  
+          if (locationUpdateError) throw locationUpdateError;
+        } else {
+          // If location doesn't exist, insert it
           const { error: locationInsertError } = await supabase
             .from("vendor_locations")
             .insert({
-              vendor_id: user.id,  // Using user ID as the vendor ID
+              vendor_id: user.id,
               address: values.address,
               city: values.city,
               zip_code: values.zipCode
             });
-
+  
           if (locationInsertError) throw locationInsertError;
         }
       } else {
@@ -119,7 +138,7 @@ export const useVendorSubmission = () => {
         const { error: locationError } = await supabase
           .from("vendor_locations")
           .insert({
-            vendor_id: user.id,  // Using user ID as the vendor ID
+            vendor_id: user.id,
             address: values.address,
             city: values.city,
             zip_code: values.zipCode
