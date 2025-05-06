@@ -33,6 +33,25 @@ serve(async (req) => {
     }
     
     const supabase = getServiceSupabase()
+
+    // Check if any businesses already exist for this user to avoid duplicates
+    const { data: existingBusinesses, error: checkError } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('created_by', user_id)
+      .maybeSingle()
+
+    if (checkError) {
+      console.error('Error checking for existing business:', checkError)
+    }
+
+    if (existingBusinesses?.id) {
+      console.log('User already has a business, returning existing ID:', existingBusinesses.id)
+      return new Response(
+        JSON.stringify({ id: existingBusinesses.id, existing: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
     
     // Create the business
     const { data: business, error } = await supabase
