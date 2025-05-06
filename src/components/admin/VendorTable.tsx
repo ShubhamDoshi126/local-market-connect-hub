@@ -7,7 +7,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { VendorActions } from "./VendorActions";
 import { VendorStatus } from "./VendorStatus";
 import { type Vendor } from "./types";
 
@@ -16,7 +15,7 @@ interface VendorTableProps {
   onStatusUpdate: (vendorId: string, status: "approved" | "rejected") => Promise<void>;
 }
 
-export const VendorTable = ({ vendors, onStatusUpdate }: VendorTableProps) => {
+export const VendorTable = ({ vendors }: VendorTableProps) => {
   return (
     <Table>
       <TableHeader>
@@ -25,7 +24,6 @@ export const VendorTable = ({ vendors, onStatusUpdate }: VendorTableProps) => {
           <TableHead>Category</TableHead>
           <TableHead>Location</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -38,13 +36,6 @@ export const VendorTable = ({ vendors, onStatusUpdate }: VendorTableProps) => {
             </TableCell>
             <TableCell>
               <VendorStatus status={vendor.status} />
-            </TableCell>
-            <TableCell className="space-x-2">
-              <VendorActions 
-                vendorId={vendor.id} 
-                status={vendor.status} 
-                onStatusUpdate={onStatusUpdate}
-              />
             </TableCell>
           </TableRow>
         ))}

@@ -52,6 +52,7 @@ export const useVendorSubmission = () => {
             description: values.description,
             website: values.website || null,
             instagram: values.instagram || null,
+            status: "approved" // Always set to approved when updating
           })
           .eq("user_id", user.id);
 
@@ -122,6 +123,7 @@ export const useVendorSubmission = () => {
               website: values.website || null,
               instagram: values.instagram || null,
               user_id: user.id,
+              status: "approved" // Set to approved by default - no admin approval needed
             });
 
           if (vendorError) {
@@ -141,6 +143,7 @@ export const useVendorSubmission = () => {
                 description: values.description,
                 website: values.website || null,
                 instagram: values.instagram || null,
+                status: "approved" // Always set to approved when updating
               })
               .eq("id", user.id);
             
@@ -194,7 +197,7 @@ export const useVendorSubmission = () => {
         title: existingVendor ? "Business updated!" : "Business created!",
         description: existingVendor 
           ? "You've successfully updated your vendor business." 
-          : "You've successfully registered your vendor business.",
+          : "You're now an approved vendor! You can start using all vendor features immediately.",
       });
       
       navigate("/business/" + businessId);

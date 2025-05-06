@@ -122,7 +122,7 @@ const JoinBusinessForm = () => {
 
         if (!business) throw new Error("Business not found");
 
-        // Create vendor profile
+        // Create vendor profile with approved status
         const { error: vendorError } = await supabase
           .from("vendors")
           .insert({
@@ -132,6 +132,7 @@ const JoinBusinessForm = () => {
             business_category: "other", // Default category
             description: "",
             user_id: user.id,
+            status: "approved" // Set to approved by default
           });
 
         if (vendorError) throw vendorError;
@@ -139,7 +140,10 @@ const JoinBusinessForm = () => {
         // Update existing vendor with the new business_id
         const { error: updateError } = await supabase
           .from("vendors")
-          .update({ business_id: businessId })
+          .update({ 
+            business_id: businessId,
+            status: "approved" // Ensure status is approved
+          })
           .eq("id", user.id);
 
         if (updateError) throw updateError;
@@ -158,7 +162,7 @@ const JoinBusinessForm = () => {
 
       toast({
         title: "Success!",
-        description: "You have successfully joined the business",
+        description: "You have successfully joined the business as an approved vendor",
       });
       navigate(`/business/${businessId}`);
     } catch (error: any) {
