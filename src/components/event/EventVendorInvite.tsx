@@ -39,6 +39,15 @@ interface Business {
   profile?: ProfileData;
 }
 
+// Interface for the raw Supabase response structure
+interface BusinessResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  vendors?: Array<VendorData> | null;
+  vendor_locations?: Array<LocationData> | null;
+}
+
 const EventVendorInvite = ({ eventId }: EventVendorInviteProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -98,15 +107,15 @@ const EventVendorInvite = ({ eventId }: EventVendorInviteProps) => {
 
       // Enhance with profile data where available
       if (data && data.length > 0) {
-        const enhancedBusinesses = await Promise.all(
-          data.map(async (business) => {
+        const enhancedBusinesses: Business[] = await Promise.all(
+          data.map(async (business: BusinessResponse) => {
             // Properly handle the vendors array
             const vendorData = business.vendors && business.vendors.length > 0 
               ? business.vendors[0] 
               : undefined;
 
             // Only fetch profile if we have a vendor with a user_id
-            let profileData = undefined;
+            let profileData: ProfileData | undefined = undefined;
             if (vendorData && vendorData.user_id) {
               const { data: profile } = await supabase
                 .from("profiles")
@@ -114,16 +123,16 @@ const EventVendorInvite = ({ eventId }: EventVendorInviteProps) => {
                 .eq("id", vendorData.user_id)
                 .maybeSingle();
               
-              profileData = profile || undefined;
+              profileData = profile as ProfileData || undefined;
             }
 
-            // Create a properly typed business object
+            // Create a properly typed business object with safe defaults
             const businessObj: Business = {
               id: business.id,
               name: business.name,
               description: business.description,
-              vendor: vendorData,
-              locations: business.vendor_locations || [],
+              vendor: vendorData, // This is already of type VendorData or undefined
+              locations: Array.isArray(business.vendor_locations) ? business.vendor_locations : [],
               profile: profileData
             };
 
