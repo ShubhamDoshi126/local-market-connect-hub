@@ -26,6 +26,17 @@ export const useVendorSubmission = () => {
         return;
       }
 
+      // Validate location data
+      if (!values.address || !values.city || !values.zipCode) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please provide complete location information.",
+        });
+        setLoading(false);
+        return;
+      }
+
       // Check if the user already has a vendor profile - using maybeSingle to avoid errors
       const { data: existingVendor, error: vendorCheckError } = await supabase
         .from("vendors")
@@ -161,6 +172,14 @@ export const useVendorSubmission = () => {
         .eq("vendor_id", user.id)
         .maybeSingle();
 
+      console.log("Location data to save:", {
+        vendor_id: user.id,
+        address: values.address,
+        city: values.city,
+        state: values.state,
+        zip_code: values.zipCode
+      });
+
       if (existingLocation) {
         // Update existing location
         const { error: locationUpdateError } = await supabase
@@ -168,6 +187,7 @@ export const useVendorSubmission = () => {
           .update({
             address: values.address,
             city: values.city,
+            state: values.state,
             zip_code: values.zipCode
           })
           .eq("id", existingLocation.id);
@@ -184,6 +204,7 @@ export const useVendorSubmission = () => {
             vendor_id: user.id,  // Using user.id as the vendor_id
             address: values.address,
             city: values.city,
+            state: values.state,
             zip_code: values.zipCode
           });
 

@@ -5,7 +5,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { PlusCircle, Menu, X } from "lucide-react";
+import { PlusCircle, Menu, X, User, Settings, Store, LogOut } from "lucide-react";
 import { useState } from "react";
 import {
   DropdownMenu,
@@ -15,11 +15,56 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const Navbar = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Fetch user's vendor info
+  const { data: vendorInfo } = useQuery({
+    queryKey: ["vendor-info", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("vendors")
+        .select("*, business_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  // Fetch user profile data
+  const { data: profileData } = useQuery({
+    queryKey: ["profile-data", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("first_name, last_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const getUserInitials = () => {
+    if (profileData?.first_name && profileData?.last_name) {
+      return `${profileData.first_name[0]}${profileData.last_name[0]}`;
+    }
+    if (user?.email) {
+      return user.email.substring(0, 2).toUpperCase();
+    }
+    return "U";
+  };
 
   const handleSignOut = async () => {
     try {
@@ -79,7 +124,49 @@ const Navbar = () => {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 
-                <Button onClick={handleSignOut} variant="outline">Sign Out</Button>
+                {/* Profile menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="p-1" size="sm">
+                      <Avatar className="h-8 w-8 bg-purple-100 text-purple-800">
+                        <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <Link to="/profile">
+                      <DropdownMenuItem className="cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />
+                        My Profile
+                      </DropdownMenuItem>
+                    </Link>
+                    
+                    {vendorInfo && vendorInfo.business_id && (
+                      <Link to={`/business/${vendorInfo.business_id}`}>
+                        <DropdownMenuItem className="cursor-pointer">
+                          <Store className="mr-2 h-4 w-4" />
+                          My Business
+                        </DropdownMenuItem>
+                      </Link>
+                    )}
+                    
+                    <Link to="/settings">
+                      <DropdownMenuItem className="cursor-pointer">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Settings
+                      </DropdownMenuItem>
+                    </Link>
+                    
+                    <DropdownMenuSeparator />
+                    
+                    <DropdownMenuItem className="cursor-pointer" onClick={handleSignOut}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             ) : (
               <Link to="/auth">
@@ -125,6 +212,22 @@ const Navbar = () => {
                 >
                   Register Business
                 </Link>
+                <Link 
+                  to="/profile"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-purple-700 hover:bg-gray-50"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  My Profile
+                </Link>
+                {vendorInfo && vendorInfo.business_id && (
+                  <Link
+                    to={`/business/${vendorInfo.business_id}`}
+                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-purple-700 hover:bg-gray-50" 
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    My Business
+                  </Link>
+                )}
               </>
             )}
             

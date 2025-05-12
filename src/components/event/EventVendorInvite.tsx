@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { SearchIcon, PlusIcon } from "lucide-react";
+import { SearchIcon, PlusIcon, MapPin } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 
 interface EventVendorInviteProps {
   eventId: string;
@@ -17,6 +18,19 @@ interface Business {
   id: string;
   name: string;
   description: string | null;
+  vendor?: {
+    business_category: string;
+    id: string;
+    user_id: string;
+  };
+  locations?: {
+    city: string;
+    zip_code: string;
+  }[];
+  profile?: {
+    first_name: string;
+    last_name: string;
+  };
 }
 
 const EventVendorInvite = ({ eventId }: EventVendorInviteProps) => {
@@ -52,15 +66,58 @@ const EventVendorInvite = ({ eventId }: EventVendorInviteProps) => {
     
     setLoading(true);
     try {
+      // Get businesses with their vendor information and location data
       const { data, error } = await supabase
         .from("businesses")
-        .select("id, name, description")
+        .select(`
+          id, 
+          name, 
+          description,
+          vendors (
+            id,
+            business_category,
+            user_id
+          ),
+          vendor_locations (
+            city,
+            zip_code
+          )
+        `)
         .ilike("name", `%${searchQuery}%`)
         .limit(5);
 
       if (error) throw error;
 
-      setBusinesses(data || []);
+      // Enhance with profile data where available
+      if (data && data.length > 0) {
+        const enhancedBusinesses = await Promise.all(
+          data.map(async (business) => {
+            if (business.vendors && business.vendors[0]?.user_id) {
+              const { data: profileData } = await supabase
+                .from("profiles")
+                .select("first_name, last_name")
+                .eq("id", business.vendors[0].user_id)
+                .maybeSingle();
+
+              return {
+                ...business,
+                vendor: business.vendors[0],
+                locations: business.vendor_locations,
+                profile: profileData
+              };
+            }
+            return {
+              ...business,
+              vendor: business.vendors ? business.vendors[0] : undefined,
+              locations: business.vendor_locations
+            };
+          })
+        );
+
+        setBusinesses(enhancedBusinesses as Business[]);
+      } else {
+        setBusinesses([]);
+      }
     } catch (error: any) {
       console.error("Error searching businesses:", error);
       toast({
@@ -114,6 +171,7 @@ const EventVendorInvite = ({ eventId }: EventVendorInviteProps) => {
                 placeholder="Search vendors by name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && searchBusinesses()}
               />
             </div>
             <Button onClick={searchBusinesses} disabled={loading}>
@@ -133,29 +191,50 @@ const EventVendorInvite = ({ eventId }: EventVendorInviteProps) => {
                 businesses.map((business) => (
                   <div
                     key={business.id}
-                    className="flex justify-between items-center p-3 border rounded"
+                    className="flex flex-col p-3 border rounded"
                   >
-                    <div>
-                      <h3 className="font-medium">{business.name}</h3>
-                      <p className="text-sm text-gray-500">
-                        {business.description || "No description"}
-                      </p>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-medium">{business.name}</h3>
+                        <p className="text-sm text-gray-500">
+                          {business.description || "No description"}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => inviteBusiness(business.id)}
+                        disabled={invitedBusinesses.includes(business.id)}
+                      >
+                        {invitedBusinesses.includes(business.id) ? (
+                          "Invited"
+                        ) : (
+                          <>
+                            <PlusIcon className="h-4 w-4 mr-2" />
+                            Invite
+                          </>
+                        )}
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => inviteBusiness(business.id)}
-                      disabled={invitedBusinesses.includes(business.id)}
-                    >
-                      {invitedBusinesses.includes(business.id) ? (
-                        "Invited"
-                      ) : (
-                        <>
-                          <PlusIcon className="h-4 w-4 mr-2" />
-                          Invite
-                        </>
+                    
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {business.vendor && business.vendor.business_category && (
+                        <Badge variant="secondary">{business.vendor.business_category}</Badge>
                       )}
-                    </Button>
+                      
+                      {business.locations && business.locations.length > 0 && (
+                        <div className="flex items-center text-xs text-gray-600">
+                          <MapPin className="h-3 w-3 mr-1" />
+                          {business.locations[0].city}, {business.locations[0].zip_code}
+                        </div>
+                      )}
+                      
+                      {business.profile && (
+                        <div className="text-xs text-gray-600 ml-auto">
+                          Contact: {business.profile.first_name} {business.profile.last_name}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))
               ) : searchQuery ? (

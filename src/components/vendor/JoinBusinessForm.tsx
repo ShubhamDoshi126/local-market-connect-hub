@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,28 +41,33 @@ const JoinBusinessForm = () => {
   });
 
   const handleSearch = async () => {
-    if (!searchQuery || searchQuery.length < 3) {
+    if (!searchQuery || searchQuery.length < 2) {
       toast({
         variant: "destructive",
         title: "Search Error",
-        description: "Please enter at least 3 characters to search",
+        description: "Please enter at least 2 characters to search",
       });
       return;
     }
 
     setSearching(true);
+    console.log("Searching for:", searchQuery);
 
     try {
+      // Use a more flexible search approach
       const { data, error } = await supabase
         .from("businesses")
         .select("id, name, description")
-        .ilike("name", `%${searchQuery}%`)
-        .limit(5);
+        .or(`name.ilike.%${searchQuery}%`)
+        .limit(10);
+
+      console.log("Search results:", data, error);
 
       if (error) throw error;
 
       setSearchResults(data || []);
     } catch (error: any) {
+      console.error("Search error:", error);
       toast({
         variant: "destructive",
         title: "Search Error",

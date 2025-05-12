@@ -12,6 +12,7 @@ const AdminVendorList = () => {
         .select("*, vendor_locations(*)");
       
       if (error) throw error;
+      console.log("Vendors with locations:", data);
       return data;
     },
   });
