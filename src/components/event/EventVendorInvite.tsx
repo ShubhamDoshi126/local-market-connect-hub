@@ -14,23 +14,29 @@ interface EventVendorInviteProps {
   eventId: string;
 }
 
+interface VendorData {
+  business_category: string;
+  id: string;
+  user_id: string;
+}
+
+interface LocationData {
+  city: string;
+  zip_code: string;
+}
+
+interface ProfileData {
+  first_name: string;
+  last_name: string;
+}
+
 interface Business {
   id: string;
   name: string;
   description: string | null;
-  vendor?: {
-    business_category: string;
-    id: string;
-    user_id: string;
-  };
-  locations?: {
-    city: string;
-    zip_code: string;
-  }[];
-  profile?: {
-    first_name: string;
-    last_name: string;
-  };
+  vendor?: VendorData;
+  locations?: LocationData[];
+  profile?: ProfileData;
 }
 
 const EventVendorInvite = ({ eventId }: EventVendorInviteProps) => {
@@ -94,12 +100,13 @@ const EventVendorInvite = ({ eventId }: EventVendorInviteProps) => {
       if (data && data.length > 0) {
         const enhancedBusinesses = await Promise.all(
           data.map(async (business) => {
+            // Properly handle the vendors array
             const vendorData = business.vendors && business.vendors.length > 0 
               ? business.vendors[0] 
-              : null;
+              : undefined;
 
             // Only fetch profile if we have a vendor with a user_id
-            let profileData = null;
+            let profileData = undefined;
             if (vendorData && vendorData.user_id) {
               const { data: profile } = await supabase
                 .from("profiles")
@@ -107,17 +114,20 @@ const EventVendorInvite = ({ eventId }: EventVendorInviteProps) => {
                 .eq("id", vendorData.user_id)
                 .maybeSingle();
               
-              profileData = profile;
+              profileData = profile || undefined;
             }
 
-            return {
+            // Create a properly typed business object
+            const businessObj: Business = {
               id: business.id,
               name: business.name,
               description: business.description,
-              vendor: vendorData || undefined,
+              vendor: vendorData,
               locations: business.vendor_locations || [],
-              profile: profileData || undefined
-            } as Business;
+              profile: profileData
+            };
+
+            return businessObj;
           })
         );
 
