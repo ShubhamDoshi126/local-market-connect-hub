@@ -88,33 +88,41 @@ const EventVendorInvite = ({ eventId }: EventVendorInviteProps) => {
 
       if (error) throw error;
 
+      console.log("Raw business data:", data);
+
       // Enhance with profile data where available
       if (data && data.length > 0) {
         const enhancedBusinesses = await Promise.all(
           data.map(async (business) => {
-            if (business.vendors && business.vendors[0]?.user_id) {
-              const { data: profileData } = await supabase
+            const vendorData = business.vendors && business.vendors.length > 0 
+              ? business.vendors[0] 
+              : null;
+
+            // Only fetch profile if we have a vendor with a user_id
+            let profileData = null;
+            if (vendorData && vendorData.user_id) {
+              const { data: profile } = await supabase
                 .from("profiles")
                 .select("first_name, last_name")
-                .eq("id", business.vendors[0].user_id)
+                .eq("id", vendorData.user_id)
                 .maybeSingle();
-
-              return {
-                ...business,
-                vendor: business.vendors[0],
-                locations: business.vendor_locations,
-                profile: profileData
-              };
+              
+              profileData = profile;
             }
+
             return {
-              ...business,
-              vendor: business.vendors ? business.vendors[0] : undefined,
-              locations: business.vendor_locations
-            };
+              id: business.id,
+              name: business.name,
+              description: business.description,
+              vendor: vendorData || undefined,
+              locations: business.vendor_locations || [],
+              profile: profileData || undefined
+            } as Business;
           })
         );
 
-        setBusinesses(enhancedBusinesses as Business[]);
+        console.log("Enhanced businesses:", enhancedBusinesses);
+        setBusinesses(enhancedBusinesses);
       } else {
         setBusinesses([]);
       }
