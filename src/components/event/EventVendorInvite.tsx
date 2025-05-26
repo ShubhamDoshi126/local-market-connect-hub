@@ -44,9 +44,10 @@ interface BusinessResponse {
   id: string;
   name: string;
   description: string | null;
-  vendors?: Array<VendorData> | null;
-  vendor_locations?: Array<LocationData> | null;
+  vendors?: Array<VendorData> | { error: true } | null;
+  vendor_locations?: Array<LocationData> | { error: true } | null;
 }
+
 
 const EventVendorInvite = ({ eventId }: EventVendorInviteProps) => {
   const { user } = useAuth();
