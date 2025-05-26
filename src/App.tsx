@@ -18,7 +18,8 @@ import BusinessPage from "./pages/BusinessPage";
 import BusinessProducts from "./pages/BusinessProducts";
 import EditBusiness from "./pages/EditBusiness";
 import VendorDashboardPage from "./pages/VendorDashboardPage";
-
+import Profile from "./pages/Profile";
+  
 // Create a client
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ function App() {
               <Route path="/auth" element={<Auth />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="*" element={<NotFound />} />
+              <Route path="/profile" element={<Profile />} />
             </Routes>
             <Toaster />
             <Sonner />
