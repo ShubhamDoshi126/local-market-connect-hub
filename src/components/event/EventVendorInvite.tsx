@@ -110,10 +110,15 @@ const EventVendorInvite = ({ eventId }: EventVendorInviteProps) => {
       if (data && data.length > 0) {
         const enhancedBusinesses: Business[] = await Promise.all(
           data.map(async (business: BusinessResponse) => {
+            // Utility type guard to differentiate valid arrays from error objects
+            const isValidArray = (obj: any): obj is any[] =>
+              Array.isArray(obj) && !('error' in obj);
+            
             // Properly handle the vendors array
-            const vendorData = business.vendors && business.vendors.length > 0 
-              ? business.vendors[0] 
+            const vendorData = isValidArray(business.vendors) && business.vendors.length > 0
+              ? business.vendors[0]
               : undefined;
+
 
             // Only fetch profile if we have a vendor with a user_id
             let profileData: ProfileData | undefined = undefined;
@@ -133,7 +138,7 @@ const EventVendorInvite = ({ eventId }: EventVendorInviteProps) => {
               name: business.name,
               description: business.description,
               vendor: vendorData, // This is already of type VendorData or undefined
-              locations: Array.isArray(business.vendor_locations) ? business.vendor_locations : [],
+              locations: isValidArray(business.vendor_locations) ? business.vendor_locations : [],
               profile: profileData
             };
 
